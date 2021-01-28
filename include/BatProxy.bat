@@ -3,10 +3,13 @@
 :#                                                                            *
 :#  Filename:	    configure.bat / make.bat				      *
 :#                                                                            *
-:#  Description:    Search for the eponym script in SysToolsLib and run it.   *
+:#  Description:    Search for the eponym script in NMakeX\include and run it *
 :#                                                                            *
 :#  Notes:	    If the %STINCLUDE% variable is not defined, search for    *
-:#		    the SysToolsLib include directory, and define %STINCLUDE%.*
+:#		    the NMakeX\include directory, and define %STINCLUDE%.     *
+:#                                                                            *
+:#                  The STINCLUDE name comes from JFL's Systems Tools Library,*
+:#                  for which this make system was originally created.        *
 :#                                                                            *
 :#                  Make any change needed regarding the actual configuration *
 :#		    process in %STINCLUDE%\configure.bat. Idem for the make   *
@@ -24,18 +27,20 @@
 :#                  Fixed several :# comments, which should have been &:#.    *
 :#   2018-01-12 JFL Improved comments and the debugging output.               *
 :#   2020-12-10 JFL Search for batchs in [.|..|..\..]\[.|WIN32|C]\include.    *
+:#   2021-01-28 JFL Search in [.|..|..\..]\[.|NMakeX|WIN32|C]\include.        *
+:#                  Update the STINCLUDE variable in the caller's scope.      *
 :#                                                                            *
 :#        © Copyright 2016 Hewlett Packard Enterprise Development LP          *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2020-12-10"
+set "VERSION=2021-01-28"
 set "SCRIPT=%~nx0"				&:# Script name
 
 goto main
 
-:# Check if a directory contains the SysToolsLib make system
+:# Check if a directory contains the NMakeX make system
 :CheckDir DIRNAME [DIRNAME ...] :# Sets STINCLUDE and ERRORLEVEL=0 if success
 for %%a in (%*) do (
   %ECHO.D% Searching for STINCLUDE in "%%~a"
@@ -68,9 +73,9 @@ goto :next_arg
 if defined STINCLUDE %CHECKDIR% "%STINCLUDE%" &:# If pre-defined, make sure the value is valid
 
 :# As a first choice, use the make.bat provided in this project
-if not defined STINCLUDE %CHECKDIR% include win32\include C\include &:# If we have one here, use it
+if not defined STINCLUDE %CHECKDIR% include NMakeX\include win32\include C\include &:# If we have one here, use it
 :# Else try in the near context
-for %%p in (.. ..\..) do if not defined STINCLUDE %CHECKDIR% %%p\include %%p\win32\include %%p\C\include &:# Default: Search it the parent directory, and 2nd level.
+for %%p in (.. ..\..) do if not defined STINCLUDE %CHECKDIR% %%p\include %%p\NMakeX\include %%p\win32\include %%p\C\include &:# Default: Search it the parent directory, and 2nd level.
 :# We might also store the information in the registry
 if not defined STINCLUDE ( :# Try getting the copy in the master environment
   for /f "tokens=3" %%v in ('reg query "HKCU\Environment" /v STINCLUDE 2^>NUL') do set "STINCLUDE=%%v"
@@ -88,10 +93,11 @@ if not defined STINCLUDE (
 )
 :# If we still can't find it, admit defeat
 if not exist %STINCLUDE%\make.bat (
-  >&2 echo %0 Error: Cannot find SysToolsLib's global C include directory. Please define variable STINCLUDE.
+  >&2 echo %0 Error: Cannot find NMakeX's global C include directory. Please define variable STINCLUDE.
   exit /b 1
 )
 
 %ECHO.D% "%STINCLUDE%\%SCRIPT%" %*
+:# Update the STINCLUDE variable in the caller's scope. This ensures that child instances don't search it again.
 :# Must call the target batch, not run it directly, else the cmd window title is not removed in the end!
-endlocal & call "%STINCLUDE%\%SCRIPT%" %*
+endlocal & set "STINCLUDE=%STINCLUDE%" & call "%STINCLUDE%\%SCRIPT%" %*
