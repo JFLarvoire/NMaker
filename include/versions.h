@@ -222,6 +222,13 @@
 #define PROGRAM_NAME_AND_DEBUG \
         PROGRAM_NAME EXE_SUFFIX AND_DEBUG
 
+/* Name and short version. Used in help screens */
+#define PROGRAM_NAME_AND_VERSION					\
+	"\n" PROGRAM_NAME EXE_SUFFIX					\
+	/* " version " PROGRAM_VERSION */				\
+        /* DEBUG_VERSION        If used SysToolsLib's debugm.h */	\
+        AND_DEBUG_VERSION						\
+
 /* Detailed version, for use by the -V option. */
 #define DETAILED_VERSION							     \
 	PROGRAM_VERSION_AND_DATE /* Version and/or Date of last change */            \

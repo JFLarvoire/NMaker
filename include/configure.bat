@@ -194,13 +194,14 @@
 :#   2019-04-16 JFL Merged in the 2019-01-20 change made for Ag.              *
 :#   2019-06-12 JFL Added the user full name and email to %CONFIG.BAT%.	      *
 :#   2020-06-30 JFL Added the 7-Zip LZMA SDK to the list of known SDKs.       *
+:#   2021-02-03 JFL Renamed variable STINCLUDE as NMINCLUDE.                  *
 :#                                                                            *
 :#      © Copyright 2016-2020 Hewlett Packard Enterprise Development LP       *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2020-06-30"
+set "VERSION=2021-02-03"
 set "SCRIPT=%~nx0"				&:# Script name
 set "SPATH=%~dp0" & set "SPATH=!SPATH:~0,-1!"	&:# Script path, without the trailing \
 set  "ARG0=%~f0"				&:# Script full pathname
@@ -2103,7 +2104,7 @@ echo Options:
 echo   -?^|-h         This help
 echo   -c CONFIG     Name the output file config.CONFIG.bat
 echo   -d            Debug mode. Display internal variables and function calls
-echo   -E            Ignore environment variable STINCLUDE, and redefine it
+echo   -E            Ignore environment variable NMINCLUDE, and redefine it
 echo   -l LOGFILE    Log output into a file. Default: Don't
 echo   -L            Disable logging. Default: Use the parent script log file, if any
 echo   -masm PATH    Path to MASM install dir, or - to disable. Default: C:\MASM
@@ -2139,7 +2140,7 @@ if "!ARG!"=="-?" goto help
 if "!ARG!"=="/?" goto help
 if "!ARG!"=="-c" %POPARG% & set "CONFIG.BAT=config.!ARG!.bat" & goto next_arg
 if "!ARG!"=="-d" call :Debug.On & call :Verbose.On & goto next_arg
-if "!ARG!"=="-E" set "STINCLUDE=" & goto next_arg
+if "!ARG!"=="-E" set "NMINCLUDE=" & goto next_arg
 if "!ARG!"=="-h" goto help
 if "!ARG!"=="-l" %POPARG% & call :Debug.SetLog !"ARG"! & goto next_arg
 if "!ARG!"=="-L" call :Debug.SetLog & goto next_arg
@@ -2210,7 +2211,7 @@ call :findArm	&:# Find ARM development tools
 call :findArm64	&:# Find ARM64 development tools
 
 :# Manage a list of known SDKs, that we'll include further down in the build variables
-set "SDK_LIST=STINCLUDE" &:# List of variable names, defining the SDK install directories.
+set "SDK_LIST=NMINCLUDE" &:# List of variable names, defining the SDK install directories.
 :# Macro, for use in configure.*.bat scripts, to easily add variables to %SDK_LIST%
 set USE_SDK=%MACRO% ( %\n%
   for %%a in (%!%MACRO.ARGS%!%) do ( %\n%
@@ -2281,9 +2282,9 @@ if not defined CON.CS (
 %ECHOVARS.D% WIN.CP DOS.CP CON.CP
 
 :# Known SDKs:
-set "SDK.STINCLUDE.NAME=System Tools global C includes"
-set "SDK.STINCLUDE.DIR=INCLUDE"
-set "SDK.STINCLUDE.FILE=debugm.h"
+set "SDK.NMINCLUDE.NAME=System Tools global C includes"
+set "SDK.NMINCLUDE.DIR=INCLUDE"
+set "SDK.NMINCLUDE.FILE=debugm.h"
 
 set "SDK.BIOSLIB.NAME=BIOS Library"
 set "SDK.BIOSLIB.FILE=clibdef.h"
@@ -2357,7 +2358,7 @@ if defined SDK_LIST for %%v in (%SDK_LIST%) do (
     :# but not available in parent nmake environment.
     if not defined %%v call :Reg.GetValue HKCU\Environment %%v %%v :# Get value from the master environment in the registry
     if defined %%v call :lappend PATH_LIST "!%%v!"
-    if "%%v"=="STINCLUDE" call :lappend PATH_LIST "%SPATH%" &rem :# configure.bat normally is in the STINCLUDE dir
+    if "%%v"=="NMINCLUDE" call :lappend PATH_LIST "%SPATH%" &rem :# configure.bat normally is in the NMINCLUDE dir
     if defined MY_SDKS for %%s in (%MY_SDKS%) do call :lappend PATH_LIST "%%~s\!DIR!"
     call :lappend PATH_LIST ..\!DIR!
     call :lappend PATH_LIST "%PF64%\!DIR!"
@@ -2644,7 +2645,7 @@ for %%c in ("%CONFIG.BAT%") do %ECHO.V% :# Writing %%~fc
 %CONFIG%.
 %CONFIG% SET "AS=" ^&:# Assembler
 %CONFIG% SET "CC=" ^&:# C compiler
-%CONFIG% SET "INCLUDE=%STINCLUDE%" ^&:# Include paths. Define USER_INCLUDE if needed.
+%CONFIG% SET "INCLUDE=%NMINCLUDE%" ^&:# Include paths. Define USER_INCLUDE if needed.
 %CONFIG% SET "LK=" ^&:# Linker
 %CONFIG% SET "LIB=" ^&:# Libraries paths. Define USER_LIBS if needed.
 %CONFIG% SET "LB=" ^&:# Library manager
@@ -2730,9 +2731,9 @@ if defined POST_MAKE_ACTIONS (
 :# Create local configure.bat and make.bat proxies
 for %%f in (configure make) do (
   if not exist %%f.bat (
-    %EXEC% copy %STINCLUDE%\BatProxy.bat %%f.bat ">"NUL 2">"NUL
+    %EXEC% copy %NMINCLUDE%\BatProxy.bat %%f.bat ">"NUL 2">"NUL
   ) else (
-    %EXEC% xcopy /d /y %STINCLUDE%\BatProxy.bat %%f.bat ">"NUL 2">"NUL
+    %EXEC% xcopy /d /y %NMINCLUDE%\BatProxy.bat %%f.bat ">"NUL 2">"NUL
   )
 )
 

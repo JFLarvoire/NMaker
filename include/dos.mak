@@ -163,9 +163,9 @@ MAKEDEFS=$(MAKEDEFS) "MEM=$(MEM)"
 
 THIS_MAKEFILE=dos.mak		# This very make file name
 MAKEFILE=$(T).mak		# The OS-specific make file name
-!IF (!EXIST("$(MAKEFILE)")) && EXIST("$(STINCLUDE)\$(MAKEFILE)")
-MAKEFILE=$(STINCLUDE)\$(MAKEFILE)
-THIS_MAKEFILE=$(STINCLUDE)\$(THIS_MAKEFILE)
+!IF (!EXIST("$(MAKEFILE)")) && EXIST("$(NMINCLUDE)\$(MAKEFILE)")
+MAKEFILE=$(NMINCLUDE)\$(MAKEFILE)
+THIS_MAKEFILE=$(NMINCLUDE)\$(THIS_MAKEFILE)
 !ENDIF
 
 # Debug-mode-specific definitions
@@ -282,7 +282,7 @@ RFLAGS=$(DD)
 PATH=$(DOS_PATH)
 CC=$(DOS_CC)
 AS=$(DOS_AS)
-INCLUDE=$(S);$(STINCLUDE);$(DOS_INCPATH);$(USER_INCLUDE)
+INCLUDE=$(S);$(NMINCLUDE);$(DOS_INCPATH);$(USER_INCLUDE)
 LK=$(DOS_LK)
 LIBS=$(DOS_LIBS) $(USER_LIBS)
 LIB=$(DOS_LIBPATH)
@@ -1027,7 +1027,7 @@ TMPMAK=$(TMP)\$(T)_vars.$(PID).mak # Using the shell PID to generate a unique na
 !ELSE IF EXIST("Files.mak")
 !  MESSAGE Getting specific rules from Files.mak.
 !  INCLUDE Files.mak
-!  IF DEFINED(PROGRAM) && ![$(STINCLUDE)\GetDefs.bat Files.mak $(PROGRAM) >"$(TMPMAK)" 2>NUL]
+!  IF DEFINED(PROGRAM) && ![$(NMINCLUDE)\GetDefs.bat Files.mak $(PROGRAM) >"$(TMPMAK)" 2>NUL]
 !    MESSAGE Getting specific definitions for $(PROGRAM) from Files.mak.
 !    INCLUDE $(TMPMAK)
 !  ENDIF

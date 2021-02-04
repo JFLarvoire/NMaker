@@ -195,8 +195,8 @@ MAKEDEFS=$(MAKEDEFS) "SOURCES=$(SOURCES)"
 !ENDIF
 
 MAKEPATH=.
-!IF (!EXIST("$(All.mak)")) && EXIST("$(STINCLUDE)\$(All.mak)")
-MAKEPATH=$(STINCLUDE)
+!IF (!EXIST("$(All.mak)")) && EXIST("$(NMINCLUDE)\$(All.mak)")
+MAKEPATH=$(NMINCLUDE)
 !ENDIF
 
 # $(OS) = List of target operating systems to build for, separated by spaces

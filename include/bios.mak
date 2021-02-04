@@ -147,8 +147,8 @@ MAKEDEFS=$(MAKEDEFS) "MEM=$(MEM)"
 !ENDIF
 
 MAKEFILE=bios.mak		# This make file name
-!IF (!EXIST("$(MAKEFILE)")) && EXIST("$(STINCLUDE)\$(MAKEFILE)")
-MAKEFILE=$(STINCLUDE)\$(MAKEFILE)
+!IF (!EXIST("$(MAKEFILE)")) && EXIST("$(NMINCLUDE)\$(MAKEFILE)")
+MAKEFILE=$(NMINCLUDE)\$(MAKEFILE)
 !ENDIF
 
 # Debug-mode-specific definitions
@@ -288,7 +288,7 @@ INCPATH=$(INCPATH);$(GNUEFI)\INC
 PATH=$(DOS_PATH)
 CC=$(DOS_CC)
 AS=$(DOS_AS)
-INCLUDE=$(S);$(STINCLUDE);$(INCPATH);$(USER_INCLUDE)
+INCLUDE=$(S);$(NMINCLUDE);$(INCPATH);$(USER_INCLUDE)
 LK=$(DOS_LK)
 LIBS=$(LIBS) $(USER_LIBS)
 LIB=$(LIBPATH)
@@ -933,7 +933,7 @@ TMPMAK=$(TMP)\$(T)_vars.$(PID).mak # Using the shell PID to generate a unique na
 !ELSE IF EXIST("Files.mak")
 !  MESSAGE Getting specific rules from Files.mak.
 !  INCLUDE Files.mak
-!  IF DEFINED(PROGRAM) && ![$(STINCLUDE)\GetDefs.bat Files.mak $(PROGRAM) >"$(TMPMAK)" 2>NUL]
+!  IF DEFINED(PROGRAM) && ![$(NMINCLUDE)\GetDefs.bat Files.mak $(PROGRAM) >"$(TMPMAK)" 2>NUL]
 !    MESSAGE Getting specific definitions for $(PROGRAM) from Files.mak.
 !    INCLUDE $(TMPMAK)
 !  ENDIF
