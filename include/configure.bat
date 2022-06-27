@@ -196,13 +196,14 @@
 :#   2020-06-30 JFL Added the 7-Zip LZMA SDK to the list of known SDKs.       *
 :#   2021-02-03 JFL Renamed variable STINCLUDE as NMINCLUDE.                  *
 :#   2021-11-16 JFL Added support for Visual Studio 17/2022.                  *
+:#   2022-06-21 JFL Changed the NMINCLUDE detect file from debugm.h to all.mak.
 :#                                                                            *
 :#      © Copyright 2016-2020 Hewlett Packard Enterprise Development LP       *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2021-11-16"
+set "VERSION=2022-06-21"
 set "SCRIPT=%~nx0"				&:# Script name
 set "SPATH=%~dp0" & set "SPATH=!SPATH:~0,-1!"	&:# Script path, without the trailing \
 set  "ARG0=%~f0"				&:# Script full pathname
@@ -2285,7 +2286,7 @@ if not defined CON.CS (
 :# Known SDKs:
 set "SDK.NMINCLUDE.NAME=System Tools global C includes"
 set "SDK.NMINCLUDE.DIR=INCLUDE"
-set "SDK.NMINCLUDE.FILE=debugm.h"
+set "SDK.NMINCLUDE.FILE=All.mak"
 
 set "SDK.BIOSLIB.NAME=BIOS Library"
 set "SDK.BIOSLIB.FILE=clibdef.h"
