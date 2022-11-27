@@ -140,13 +140,15 @@
 #    2022-10-18 JFL Generate localized C sources only once for all DOS builds.#
 #		    This is faster, and also resolves the case of CPP sources #
 #		    including other CPP sources with a UTF-8 BOM.	      #
+#    2022-11-25 JFL Allow defining an APPTYPE in the make file, to build      #
+#		    a BIOS or LODOS app instead of the default DOS app.       #
 #		    							      #
 #      © Copyright 2016-2018 Hewlett Packard Enterprise Development LP        #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
 ###############################################################################
 
 .SUFFIXES: # Clear the predefined suffixes list.
-.SUFFIXES: .com .exe .sys .obj .asm .c .r .cpp .mak .res .rc
+.SUFFIXES: .com .exe .sys .obj .asm .c .r .cpp .cc .cxx .mak .rc
 
 ###############################################################################
 #									      #
@@ -238,7 +240,7 @@ LCMEM=h
 S=.				# Where to find source files
 !IF !DEFINED(OUTDIR)
 OUTDIR=bin
-R=bin\$(T)			# Root output path - In the default bin subdirectory
+R=$(OUTDIR)\$(T)			# Root output path - In the default bin subdirectory
 !ELSEIF "$(OUTDIR)"=="."
 R=$(T)				# Root output path - In the current directory
 !ELSE # It's defined and not empty
@@ -959,8 +961,10 @@ SUBMAKE=$(MAKE) $(MAKEFLAGS_) /F "$(MAKEFILE)" $(MAKEDEFS) # Recursive call to t
     $(MSG) Linking $(B)\$(@F) ...
     set LIB=$(LIB)
     set PATH=$(PATH)
-    copy << $(L)\$(*B).LNK
-$(STARTCOM) $**
+    rem # Copy all dependents, except library files
+    $(STINCLUDE)\RemLibs.bat $(STARTCOM) $** >$(L)\$(*B).LNK
+    rem # Then append the rest of the linker response file
+    type << >>$(L)\$(*B).LNK
 $@
 $(L)\$(*F)
 $(LIBS)
@@ -981,8 +985,10 @@ $(LFLAGS) /tiny
     $(MSG) Linking $(B)\$(@F) ...
     set LIB=$(LIB)
     set PATH=$(PATH)
-    copy << $(L)\$(*B).LNK
-$(STARTEXE) $**
+    rem # Copy all dependents, except library files
+    $(STINCLUDE)\RemLibs.bat $(STARTEXE) $** >$(L)\$(*B).LNK
+    rem # Then append the rest of the linker response file
+    type << >>$(L)\$(*B).LNK
 $@
 $(L)\$(*F)
 $(LIBS)
@@ -1050,6 +1056,43 @@ LIBRARIES=
 EXENAME=$(PROGRAM).exe	# Both DOS and Windows expect this extension.
 !ENDIF
 
+# Change the default libraries search order for BIOS and LODOS applications
+!IF DEFINED(APPTYPE)
+!  IF "$(APPTYPE)"=="BIOS"
+INCPATH=$(BIOSLIB);$(LODOSLIB)
+LIB=$(BIOSLIB)\$(OUTDIR);$(LODOSLIB)\$(OUTDIR)
+LIBS=bios.lib lodos.lib
+!  ELSE IF "$(APPTYPE)"=="LODOS"
+INCPATH=$(LODOSLIB);$(BIOSLIB)
+LIB=$(LODOSLIB)\$(OUTDIR);$(BIOSLIB)\$(OUTDIR)
+LIBS=lodos.lib bios.lib
+!  ELSE IF "$(APPTYPE)"=="DOS"
+# Do nothing, as this is the default in DOS.mak
+!  ELSE
+!    ERROR "Invalid APPTYPE=$(APPTYPE). Must be either BIOS or LODOS or DOS."
+!  ENDIF
+!  IF "$(APPTYPE)"!="DOS" # That is for BIOS and LODOS apps
+!    IF DEFINED(PMODELIB)
+INCPATH=$(INCPATH);$(PMODELIB)
+LIB=$(LIB);$(PMODELIB)\$(OUTDIR)
+LIBS=$(LIBS) pmode.lib
+!    ENDIF
+!    IF DEFINED(SYSLIB)
+INCPATH=$(INCPATH);$(SYSLIB)
+LIB=$(LIB);$(SYSLIB)\$(OUTDIR)\LIB
+LIBS=$(LIBS) syslib$(LSX).lib
+!    ENDIF
+!    IF DEFINED(GNUEFI)
+INCPATH=$(INCPATH);$(GNUEFI)\INC
+!    ENDIF
+INCLUDE=$(S);$(STINCLUDE);$(INCPATH);$(USER_INCLUDE)
+LIBS=$(LIBS) $(USER_LIBS)
+LFLAGS=$(LFLAGS) /nod # Make sure we don't pull anything from MS C library
+STARTCOM=$(BIOSLIB)\$(OUTDIR)\obj\startcom.obj
+STARTEXE=$(LODOSLIB)\$(OUTDIR)\obj\startexe.obj
+!  ENDIF
+!ENDIF
+
 # If needed, convert the SOURCES list to an OBJECTS list
 !IF DEFINED(SOURCES) && !DEFINED(OBJECTS)
 !  INCLUDE src2objs.mak # Convert the SOURCES list to an OBJECTS list
@@ -1062,7 +1105,6 @@ OBJECTS=$(O)\$(PROGRAM).obj
 # Generate LIBRARIES based on LIB & LIBS
 !IF DEFINED(LIBS) && !DEFINED(LIBRARIES)
 !  INCLUDE lib2libs.mak # Generate LIBRARIES based on LIB & LIBS
-LIBS= # Avoid having them defined twice in the linker input list
 !ENDIF
 
 # Generic rule to build program
@@ -1076,7 +1118,7 @@ $(B)\$(EXENAME): $(OBJECTS:+=) $(LIBRARIES)
 $(STARTEXE) $(OBJECTS:+=)
 "$@"
 $(L)\$(*F)
-$(LIBRARIES) $(LIBS)
+$(LIBS)
 $(LFLAGS) /knoweas /stack:32768
 <<NOKEEP
     @echo "	type $(L)\$(*B).LNK"
