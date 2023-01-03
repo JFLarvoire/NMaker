@@ -115,13 +115,14 @@
 :#   2021-02-03 JFL Renamed variable STINCLUDE as NMINCLUDE.                  *
 :#   2021-02-04 JFL Do not count _CRT_SECURE_NO_WARNINGS macros as warnings.  *
 :#   2021-06-03 JFL Avoid counting constants like NO_WARNINGS as warnings.    *
+:#   2023-01-03 JFL Define MAKERELDIR with the relative path from the start.  *
 :#                                                                            *
 :#      © Copyright 2016-2020 Hewlett Packard Enterprise Development LP       *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2021-06-03"
+set "VERSION=2023-01-03"
 set "SCRIPT=%~nx0"				&:# Script name
 set "SPATH=%~dp0" & set "SPATH=!SPATH:~0,-1!"	&:# Script path, without the trailing \
 set  "ARG0=%~f0"				&:# Script full pathname
@@ -1486,8 +1487,12 @@ set "CONFIG.BAT=config.%COMPUTERNAME%.bat" &:# The output file for this make.bat
 set "POST_MAKE_ACTIONS=" &:# A series of commands to run after the final endlocal after make
 if not defined MAKEDEPTH ( :# This is the initial make.bat instance. Show the final result.
   set "MAKEDEPTH=0"
+  set "MAKEDIR0=!CD!"
+  set "MAKERELDIR=."
 ) else ( :# This is a sub-instance. Do not show the intermediate result.
   set /a "MAKEDEPTH+=1"
+  set "MAKERELDIR=!CD:%MAKEDIR0%\=!"
+  if not defined MAKERELDIR set "MAKERELDIR=."
 )
 :# Make command line parsing analysis results
 set "MAKEFILE="
@@ -1530,7 +1535,7 @@ if "!ARG!"=="-X" call :Exec.Off & goto next_arg
 :# Special targets that need special handling
 if "!ARG!"=="cleanenv" goto :CleanBuildEnvironment &:# This routine exits directly
 if not "LIGHTMAKE"=="0" (
-  for %%t in (help clean mostlyclean distclean module_name) do (
+  for %%t in (help clean mostlyclean veryclean distclean module_name) do (
     if "!ARG!"=="%%t" (
       call :GetConfig
       call :nmake !ARG! & exit /b
