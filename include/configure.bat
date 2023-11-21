@@ -64,7 +64,7 @@
 :#                  %END_SDK_DEFS%                                            *
 :#                                                                            *
 :#                  When building an SDK that may have references to itself,  *
-:#                  the use the %THIS_SDK% macro once. Ex:                    *
+:#                  then use the %THIS_SDK% macro once. Ex:                   *
 :#                                                                            *
 :#                  %BEGIN_SDK_DEFS%                                          *
 :#                  %THIS_SDK% SYSLIB                                         *
