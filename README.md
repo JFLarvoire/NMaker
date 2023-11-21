@@ -62,6 +62,7 @@ arm.mak         | Rules for building the Windows 32-bits ARM version of a progra
 arm64.mak       | Rules for building the Windows 64-bits ARM version of a program
 bios.mak        | Rules for building the PC BIOS 16-bits version of a program
 dos.mak         | Rules for building the MS-DOS 16-bits version of a program
+lodos.mak       | Rules for building MS-DOS device drivers and TSRs
 win32.mak       | Rules for building the Windows 32-bits x86 version of a program
 win64.mak       | Rules for building the Windows 64-bits amd64 version of a program
 win95.mak       | Rules for building a win32 version of a program compatible with Windows 95
@@ -71,39 +72,45 @@ win95.mak       | Rules for building a win32 version of a program compatible wit
 
         make.bat -f win32.mak help
 
-The `configure.bat` script must to be run once in each directory.  
+The `configure.bat` script must to be run once in every C/C++ source directory.  
 This is done automatically by `make.bat` the first time it runs.  
 Then you only need to run `configure.bat` again if you install new development tools. (For example a Visual C++ update.)
+
+On a properly configured source tree, it is sufficient to run `configure.bat` in the project root directory.
+configure.bat will automatically recurse in all subdirectories with C/C++ sources that 
 
 
 ## Output directories
 
 By default, all output goes in target-OS-specific subdirectories:
 
-OS		| Base output directory
+OS              | Base output directory
 --------------- | --------------------------------
-PC BIOS 	| bin\BIOS\
-MS-DOS		| bin\DOS\
-Windows 95	| bin\WIN95\
-Windows XP+ x86	| bin\WIN32\
-Windows x86_64	| bin\WIN64\
-Windows arm	| bin\ARM\
-Windows arm64	| bin\ARM64\
-Linux i686	| bin\Linux.i686\
-Linux x86_64	| bin\Linux.x86_64\
+PC BIOS         | bin\BIOS\
+MS-DOS drivers  | bin\LODOS\
+MS-DOS          | bin\DOS\
+Windows 95      | bin\WIN95\
+Windows XP+ x86 | bin\WIN32\
+Windows x86_64  | bin\WIN64\
+Windows arm     | bin\ARM\
+Windows arm64   | bin\ARM64\
+Linux i686      | bin\Linux.i686\
+Linux x86_64    | bin\Linux.x86_64\
 Mac OS          | bin\Darwin.x86_64\
 FreeBSD         | bin\FreeBSD.amd64\
 
 Within each target directory, the output files are located in the base and various subdirectories:
 
-Directory	| Contents
---------------- | -----------------------------------------------------------------
-\\*		| The "release" executables for the target OS
-\obj\\*		| The object files produced by the compilers and assemblers
-\list\\*	| The listings and map files produced by the compilers and linkers
-\debug\\*	| The "debug" executables for the target OS
-\debug\obj\\*	| The object files produced by the compilers and assemblers
-\debug\list\\*	| The listings and map files produced by the compilers and linkers
+Directory           | Contents
+------------------- | -----------------------------------------------------------------
+\\*                 | The "release" executables for the target OS
+\obj\\*             | The object files produced by the compilers and assemblers
+\list\\*            | The listings and map files produced by the compilers and linkers
+\Scripts\\*         | OS-specific scripts defined inline in the OS-specific make file
+\debug\\*           | The "debug" executables for the target OS
+\debug\obj\\*       | The object files produced by the compilers and assemblers
+\debug\list\\*      | The listings and map files produced by the compilers and linkers
+\debug\Scripts\\*   | OS-specific scripts defined inline in the OS-specific make file
 
 For virtual machines that build sources in their host's file system, or for network system that build them remotely,
 it's possible to override the default `bin` output base.  
@@ -115,6 +122,19 @@ that defines variables `OUTDIR` and/or `MY_SDKS`. Ex:
     set "OUTDIR=XPVM"        &:# Optional: Base output path, overriding the default OUTDIR=bin directory.
     set "MY_SDKS=H:\JFL\SDK" &:# Optional: Path to the shared SDKs, as seen from this system.
 
+### Localized sources
+
+Sources must be encoded in UTF-8 with BOM by default.  
+This make system automatically converts them to other encodings as needed.  
+Example:
+
+OS              | Base output directory         | Notes
+--------------- | ----------------------------- | -------------------------------------------
+DOS             | bin\SRC\cp437\                | The code page for MS-DOS in the USA
+Windows         | bin\SRC\utf8\                 | UTF-8 without BOM
+
+Note: We now have a problem with the encoding of include files.
+Please avoid using non-ASCII characters in C/C++ include files for now.
 
 ## Using this make system for a new project
 
@@ -125,12 +145,12 @@ For that, developers should create in their source directory one or more of thes
 
 | File name       | Description
 | --------------- | -----------------------------------------------------
-| Files.mak       | OS-independent declarations of variables (all optional), with lists of files and directories:
-|                 | DIRS = list of subdirectories, with their own subproject to build first.
-|                 | PROGRAMS = list of programs to build. (Without the .exe extension for Windows)
-|                 | SOURCES = Sources to compile and link together, when building a single program.
-|                 | OBJECTS = List of object files link together. Rarely needed, as it's usually computed automatically from SOURCES.
-|                 | LIBRARIES = Libraries to link with the program. Rarely needed, as this list is usually built automatically.
+| Files.mak       | OS-independent declarations of variables (all optional), with lists of files and directories:  
+|                 | DIRS = list of subdirectories, with their own subproject to build first.  
+|                 | PROGRAMS = list of programs to build. (Without the .exe extension for Windows)  
+|                 | SOURCES = Sources to compile and link together, when building a single program.  
+|                 | OBJECTS = List of object files link together. Rarely needed, as it's usually computed automatically from SOURCES.  
+|                 | LIBRARIES = Libraries to link with the program. Rarely needed, as this list is usually built automatically.  
 |                 | Files.mak is required in most projects, and is sufficient in most simple cases.
 | makefile        | GNU make file, with gmake-specific rules for building the project in Unix.
 | NMakefile       | MS nmake file, with nmake-specific rules for building the project in Windows, for DOS & Windows.
@@ -348,10 +368,10 @@ More levels could be used if desired.
 
 Most common macros:
 
-Macro				| Description
+Macro                           | Description
 ------------------------------- | ----------------------------------------------------
-DEBUG_CODE(...)			| Code to be present only in the debug version.
-DEBUG_CODE_IF_ON(...)		| Code to be present only in the debug version, and that will run only if debug is enabled.
-DEBUG_PRINTF((format, ...))	| Print something if debug is enabled. (Notice the double parenthesis!)
+DEBUG_CODE(...)                 | Code to be present only in the debug version.
+DEBUG_CODE_IF_ON(...)           | Code to be present only in the debug version, and that will run only if debug is enabled.
+DEBUG_PRINTF((format, ...))     | Print something if debug is enabled. (Notice the double parenthesis!)
 
 For a complete list of available macros, see the [debugm.h](include/debugm.h) header.
