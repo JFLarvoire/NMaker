@@ -153,6 +153,7 @@
 #    2022-12-14 JFL Bug fix: `make "OS=WIN32" clean` deleted $(OUTDIR) even   #
 #		    if it was not empty.				      #
 #    2022-12-22 JFL `make clean` now deletes the $(OUTDIR)\SRC directory.     #
+#    2023-11-28 JFL Added rules for building DLLs from C or C++ files.        #
 #		    							      #
 #       © Copyright 2016-2017 Hewlett Packard Enterprise Development LP       #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
@@ -390,6 +391,15 @@ _OBJ = .obj
     $(IFARM)   $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\ARM.mak"   $(MAKEDEFS) $@
     $(IFARM64) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\ARM64.mak" $(MAKEDEFS) $@
 
+.c.dll:
+    @echo Applying inference rule .c.dll:
+    $(IFWIN95) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN95.mak" $(MAKEDEFS) $@
+    $(IFWIN32) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN32.mak" $(MAKEDEFS) $@
+    $(IFIA64)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\IA64.mak"  $(MAKEDEFS) $@
+    $(IFWIN64) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN64.mak" $(MAKEDEFS) $@
+    $(IFARM)   $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\ARM.mak"   $(MAKEDEFS) $@
+    $(IFARM64) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\ARM64.mak" $(MAKEDEFS) $@
+
 .cpp.com:
     @echo Applying inference rule .cpp.com:
     $(IFBIOS)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\BIOS.mak"  $(MAKEDEFS) $@
@@ -401,6 +411,15 @@ _OBJ = .obj
     $(IFBIOS)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\BIOS.mak"  $(MAKEDEFS) $@
     $(IFLODOS) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\LODOS.mak" $(MAKEDEFS) $@
     $(IFDOS)   $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\DOS.mak"   $(MAKEDEFS) $@
+    $(IFWIN95) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN95.mak" $(MAKEDEFS) $@
+    $(IFWIN32) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN32.mak" $(MAKEDEFS) $@
+    $(IFIA64)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\IA64.mak"  $(MAKEDEFS) $@
+    $(IFWIN64) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN64.mak" $(MAKEDEFS) $@
+    $(IFARM)   $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\ARM.mak"   $(MAKEDEFS) $@
+    $(IFARM64) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\ARM64.mak" $(MAKEDEFS) $@
+
+.cpp.dll:
+    @echo Applying inference rule .cpp.dll:
     $(IFWIN95) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN95.mak" $(MAKEDEFS) $@
     $(IFWIN32) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN32.mak" $(MAKEDEFS) $@
     $(IFIA64)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\IA64.mak"  $(MAKEDEFS) $@
