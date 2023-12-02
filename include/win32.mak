@@ -144,13 +144,19 @@
 #    2022-12-22 JFL `make clean` now deletes libraries in $(LIBDIR).          #
 #    2023-01-18 JFL Introduce a dummy config.h, for compatibility with the    #
 #		    DOS and Unix builds that do need it.		      #
+#    2023-11-18 JFL Added .cc and .cxx to the .SUFFIXES list.		      #
+#		    Avoid warning "too many rules for target '...\....dll'".  #
+#    2023-11-28 JFL Define _DLL for nmake & cl when building a DLL. This      #
+#		    allows having DLLs with the same base name as the exe.    #
+#		    And possibly to build both from the same source file.     #
+#    2023-11-29 JFL Set the SUBSYSTEM version in all linking rules.           #
 #		    							      #
 #      © Copyright 2016-2018 Hewlett Packard Enterprise Development LP        #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
 ###############################################################################
 
 .SUFFIXES: # Clear the predefined suffixes list.
-.SUFFIXES: .exe .obj .asm .c .r .cpp .res .rc .def .manifest .mak .bsc .sbr .hl
+.SUFFIXES: .exe .obj .asm .c .r .cpp .cc .cxx .res .rc .def .manifest .mak .bsc .sbr .hl
 
 ###############################################################################
 #									      #
@@ -263,6 +269,10 @@ TMP=.
 
 !IF !DEFINED(DISPATCH_OS)
 
+!IF DEFINED(_DLL)
+DD=$(DD) /D_DLL			# Tell sources when they're built for a DLL
+!ENDIF
+
 # Tools and options
 !IF !DEFINED(AFLAGS)
 AFLAGS=/Cx /Sn /Zim "/D_MODEL=flat,stdcall"	# Default flags for the 32-bits ML.EXE assembler
@@ -336,11 +346,11 @@ RFLAGS=$(RFLAGS) "/DWITH_DOS_STUB"
 !ENDIF
 
 !IF !DEFINED(SUBSYSTEM)
-!IF DEFINED(WINVER) && ("$(WINVER)" != "")
-SUBSYSTEM=CONSOLE,$(WINVER:.=.0) # Link.exe SUBSYSTEM version format is M.mm, with M the major version, and mm the minor version
-!ELSE
 SUBSYSTEM=CONSOLE
 !ENDIF
+# Append the SUBSYSTEM version, if not present already
+!IF DEFINED(WINVER) && ("$(SUBSYSTEM:,=)" == "$(SUBSYSTEM)")
+SUBSYSTEM=$(SUBSYSTEM),$(WINVER:.=.0) # Link.exe SUBSYSTEM version format is M.mm, with M the major version, and mm the minor version
 !ENDIF
 
 INCLUDE=$(S2);$(S);$(O);$(NMINCLUDE);$(INCPATH);$(USER_INCLUDE)
@@ -421,6 +431,9 @@ MAKEDEFS="DEBUG=$(DEBUG)"
 !IF DEFINED(WINVER) # Windows target version. 4.0=Win95/NT4 5.1=XP 6.0=Vista ...
 MAKEDEFS="WINVER=$(WINVER)" $(MAKEDEFS)
 !ENDIF
+!IF DEFINED(_DLL) # Marker to tell CC we're compiling a DLL
+MAKEDEFS="_DLL=" $(MAKEDEFS)
+!ENDIF
 
 # Do not include $(MAKEDEFS) in SUBMAKE definition, as macros can only be
 # overriden by inserting a new value _ahead_ of the previous definitions.
@@ -480,11 +493,11 @@ SUBMAKE=$(MAKE) $(MAKEFLAGS_) /F "$(MAKEFILE)" # Recursive call to this make fil
 
 .mak.lib:
     @echo Applying $(T).mak inference rule (PROGRAM undefined) .mak.lib:
-    $(SUBMAKE) "PROGRAM=$(*F)" $(MAKEDEFS)  lib.hl dirs $(O)\$(@F)
+    $(SUBMAKE) "PROGRAM=$(*F)" "_DLL=" $(MAKEDEFS) lib.hl dirs $(B)\$(@F)
 
 .mak.dll:
     @echo Applying $(T).mak inference rule (PROGRAM undefined) .mak.dll:
-    $(SUBMAKE) "PROGRAM=$(*F)" $(MAKEDEFS)  dll.hl dirs $(O)\$(@F)
+    $(SUBMAKE) "PROGRAM=$(*F)" "_DLL=" $(MAKEDEFS) dll.hl dirs $(B)\$(@F)
 !ENDIF # !DEFINED(DISPATCH_OS)
 
 # Top level inference rules, specifying actual targets in subdirectories.
@@ -577,11 +590,11 @@ SUBMAKE=$(MAKE) $(MAKEFLAGS_) /F "$(MAKEFILE)" # Recursive call to this make fil
 # Inference rules to build a DLL, inferring the debug mode from the output path specified.
 {$(S)\}.mak{$(R)\}.dll:
     @echo Applying $(T).mak inference rule (PROGRAM undefined) {$$(S)\}.mak{$$(R)\}.dll:
-    $(SUBMAKE) "DEBUG=0" "PROGRAM=$(*F)" $(MAKEDEFS) dll.hl dirs $@
+    $(SUBMAKE) "DEBUG=0" "PROGRAM=$(*F)" "_DLL=" $(MAKEDEFS) dll.hl dirs $@
 
 {$(S)\}.mak{$(R)\Debug\}.dll:
     @echo Applying $(T).mak inference rule (PROGRAM undefined) {$$(S)\}.mak{$$(R)\Debug\}.dll:
-    $(SUBMAKE) "DEBUG=1" "PROGRAM=$(*F)" $(MAKEDEFS) dll.hl dirs $@
+    $(SUBMAKE) "DEBUG=1" "PROGRAM=$(*F)" "_DLL=" $(MAKEDEFS) dll.hl dirs $@
 
 !ELSE # if DEFINED(PROGRAM)
 
@@ -677,7 +690,7 @@ $(LFLAGS)
 $**
 $(LIBS)
 /OUT:$@
-/SUBSYSTEM:WINDOWS /DLL /IMPLIB:$(B)\$(*B).lib
+/SUBSYSTEM:$(SUBSYSTEM) /DLL /IMPLIB:$(B)\$(*B).lib
 $(LFLAGS)
 <<NOKEEP
     @echo "	type $(L)\$(*B).link"
@@ -750,6 +763,11 @@ OBJECTS=$(O)\$(PROGRAM).obj $(O)\$(PROGRAM).res # If there's no $(PROGRAM).rc fi
 LIBS= # Avoid having them defined twice in the linker input list
 !ENDIF
 
+# Append the SUBSYSTEM version, if not present already
+!IF DEFINED(WINVER) && ("$(SUBSYSTEM:,=)" == "$(SUBSYSTEM)")
+SUBSYSTEM=$(SUBSYSTEM),$(WINVER:.=.0) # Link.exe SUBSYSTEM version format is M.mm, with M the major version, and mm the minor version
+!ENDIF
+
 # Generic rule to build program
 !IF DEFINED(PROGRAM) && (!EXIST("$(PROGRAM).manifest")) && EXIST("asInvoker.rc") # If no manifest is defined for PROGRAM
 # Then use the default asInvoker.manifest, that flags the WIN32 exe as Vista-aware
@@ -758,6 +776,7 @@ OBJECTS=$(OBJECTS) $(O)\asInvoker.res # asInvoker.rc includes asInvoker.manifest
 !ENDIF
 !MESSAGE OBJECTS=($(OBJECTS))
 !IF !DEFINED(SKIP_THIS)
+!IF "$(EXENAME)"!="$(PROGRAM).dll" # Avoid having two rules for build a DLL
 $(B)\$(EXENAME): $(OBJECTS:+=) $(LIBRARIES) # The dependency on libraries forces relinking if one of the libraries has changed
     @echo Applying $(T).mak build rule $$(B)\$$(EXENAME):
     $(MSG) Linking $(B)\$(@F) ...
@@ -776,6 +795,7 @@ $(LFLAGS)
     $(LK) @$(L)\$(*B).link || $(REPORT_FAILURE)
     $(POST_LINK_CMD)
     $(MSG) ... done.
+!ENDIF
 
 # Generic rule to build a static library
 $(B)\$(PROGRAM).lib: $(OBJECTS:+=) $(LIBRARIES)
@@ -800,7 +820,7 @@ $(B)\$(PROGRAM).dll: $(OBJECTS:+=) $(LIBRARIES) # The dependency on libraries fo
 $(OBJECTS:+=)
 $(LIBRARIES) $(LIBS)
 /OUT:$@
-/DLL /IMPLIB:$(B)\$(*B).lib
+/SUBSYSTEM:$(SUBSYSTEM) /DLL /IMPLIB:$(B)\$(*B).lib
 $(LFLAGS)
 <<KEEP
     @echo "	type $(L)\$(*B).link"
