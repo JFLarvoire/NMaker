@@ -128,10 +128,10 @@ Sources must be encoded in UTF-8 with BOM by default.
 This make system automatically converts them to other encodings as needed.  
 Example:
 
-OS              | Base output directory         | Notes
---------------- | ----------------------------- | -------------------------------------------
-DOS             | bin\SRC\cp437\                | The code page for MS-DOS in the USA
-Windows         | bin\SRC\utf8\                 | UTF-8 without BOM
+OS              | Output directory          | Notes
+--------------- | ------------------------- | -------------------------------------------
+DOS             | bin\SRC\cp437\            | The code page for MS-DOS in the USA
+Windows         | bin\SRC\utf8\             | UTF-8 without BOM
 
 Note: We now have a problem with the encoding of include files.
 Please avoid using non-ASCII characters in C/C++ include files for now.
@@ -161,19 +161,20 @@ in the project top directory.
 
 ### Importing NMaker files
 
-Import NMaker files in your project using either one of these methods:
+Import NMaker files in your project this way:
 
- * Copy the NMaker directory into your project root
- * Reference NMaker as a git submodule
-   - Create a .gitmodules file in your root, and add the following block into it:
-     
-         [submodule "NMaker"]
-         path = NMaker
-         url = https://github.com/JFLarvoire/NMaker
-     
-   - Then run: `git submodule update --init`
+ - Run `git submodule add "https://github.com/JFLarvoire/NMaker"`  
+   This creates a .gitmodules file in your root, and adds the following block into it:
    
-In both cases, optionally, then copy `NMaker\include\BatProxy.bat` to the root, and rename it as `configure.bat`.
+       [submodule "NMaker"]
+       path = NMaker
+       url = https://github.com/JFLarvoire/NMaker
+   
+   And this downloads the NMaker project files into the NMaker subdirectory.
+   
+ - Commit the .gitmodules file and the NMaker directory into the git repository.
+
+Later on, if desired, it's possible to get the NMaker updates by running `git submodule update`.
    
 
 ### Examples
