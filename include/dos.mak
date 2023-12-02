@@ -372,7 +372,7 @@ LK=$(DOS_LK)
 LB=$(DOS_LB)
 RC=$(COMPACT_PATHS) & $(DOS_RC)
 
-AFLAGS=/Cx $(DD) /I$(O) /Fl$(L)\ /Fo$(O)\ /San /Zdim /D_MSDOS "/D_MODEL=$(MMN)" $(T_DEFS)
+AFLAGS=/Cx $(DD) /I$(O) /Fl$(L)\ /Fo$(O)\ /San /Zdim /D_MSDOS "/D_MODEL=$(MMN)"
 CFLAGS=/A$(MEM) $(DD) /Fc$(L)\ /Fd$(B)\ /Fo$(O)\ $(CGFLAGS) /W4
 !IF DEFINED(DOS_VCINC)
 CFLAGS=$(CFLAGS) "/DMSVCINCLUDE=$(DOS_VCINC:\=/)" # Path of MSVC compiler include files, without quotes, and with forward slashes
