@@ -154,6 +154,7 @@
 #		    if it was not empty.				      #
 #    2022-12-22 JFL `make clean` now deletes the $(OUTDIR)\SRC directory.     #
 #    2023-11-28 JFL Added rules for building DLLs from C or C++ files.        #
+#    2023-12-05 JFL Added rules for building a .com from a .asm source.       #
 #		    							      #
 #       © Copyright 2016-2017 Hewlett Packard Enterprise Development LP       #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
@@ -373,6 +374,12 @@ _OBJ = .obj
 ###############################################################################
 
 # Inference rule to build a simple program. Build BIOS, DOS, Win32, and Win64 versions.
+.asm.com:
+    @echo Applying inference rule .asm.com:
+    $(IFBIOS)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\BIOS.mak"  $(MAKEDEFS) $@
+    $(IFLODOS) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\LODOS.mak" $(MAKEDEFS) $@
+    $(IFDOS)   $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\DOS.mak"   $(MAKEDEFS) $@
+
 .c.com:
     @echo Applying inference rule .c.com:
     $(IFBIOS)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\BIOS.mak"  $(MAKEDEFS) $@

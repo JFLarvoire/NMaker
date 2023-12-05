@@ -167,6 +167,8 @@
 #    2023-01-17 JFL Fixed the MSVC 1.52c "Out of memory" error by moving the  #
 #		    HAS_SDK_* definitions from the CC command line to a new   #
 #		    config.h file, included ahead of all C/CPP sources.	      #
+#    2023-11-27 JFL Avoid passing $(T_DEFS) twice in the AFLAGS variable.     #
+#    2023-12-05 JFL Fixed rules for building a .com from a .asm source.       #
 #		    							      #
 #      © Copyright 2016-2018 Hewlett Packard Enterprise Development LP        #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
@@ -200,7 +202,7 @@ MEM_ORIG=user-defined
 
 EXE=exe				# Default program extension
 
-STARTCOM=$(MSVC)\LIB\CRTCOM.LIB # Default startup module for .com
+STARTCOM=$(MSVC)\LIB\CRTCOM.LIB # Default startup module for C-source .com
 STARTEXE=
 
 CODEPAGE=$(DOS_CS)		# Use the user-defined code page
@@ -555,7 +557,7 @@ DOS_INFERENCE_RULES=1
 .cpp.com:
     @echo Applying $(T).mak inference rule (PROGRAM undefined) .cpp.com:
 !IF "$(MEM)"=="T" # The normal case
-    $(SUBMAKE) "PROGRAM=$(*F)" $(MAKEDEFS) $@
+    $(SUBMAKE) "PROGRAM=$(*F)" "$(MAKEDEFS) $@
 !ELSEIF "$(MEM_ORIG)"=="default" # The default was ill-chosen. Change that in the child instance.
     $(SUBMAKE) "MEM=T" $(MAKEDEFS) $@
 !ELSE # The user made an incoherent choice. Warn him about that, and override that in the child instance.
@@ -576,7 +578,7 @@ DOS_INFERENCE_RULES=1
 
 .asm.com:
     @echo Applying $(T).mak inference rule (PROGRAM undefined) .asm.com:
-    $(SUBMAKE) "PROGRAM=$(*F)" "MEM=T" $(MAKEDEFS) com.hl dirs $(O_T)\$(*F).obj $(B_T)\$(*F).com
+    $(SUBMAKE) "PROGRAM=$(*F)" "MEM=T" "STARTCOM=" $(MAKEDEFS) com.hl dirs $(O_T)\$(*F).obj $(B_T)\$(*F).com
 
 .mak.lib:
     @echo Applying $(T).mak inference rule (PROGRAM undefined) .mak.lib:
@@ -844,7 +846,7 @@ DOS_INFERENCE_RULES=1
 #   First rules for a target with no memory model defined. Output directly into the $(R)[\Debug] directory.
 {$(S)\}.asm{$(R)\}.com:
     @echo Applying $(T).mak inference rule (PROGRAM undefined) {$$(S)\}.asm{$$(R)\}.com:
-    $(SUBMAKE) "DEBUG=0" "PROGRAM=$(*F)" "MEM=T" $(MAKEDEFS) com.hl dirs $(ONT)\$(*F).obj $(BNT)\$(*F).com
+    $(SUBMAKE) "DEBUG=0" "PROGRAM=$(*F)" "MEM=T" "STARTCOM=" $(MAKEDEFS) com.hl dirs $(ONT)\$(*F).obj $(BNT)\$(*F).com
 
 {$(S)\}.asm{$(R)\}.exe:
     @echo Applying $(T).mak inference rule (PROGRAM undefined) {$$(S)\}.asm{$$(R)\}.exe:
@@ -852,7 +854,7 @@ DOS_INFERENCE_RULES=1
 
 {$(S)\}.asm{$(R)\Debug\}.com:
     @echo Applying $(T).mak inference rule (PROGRAM undefined) {$$(S)\}.asm{$$(R)\Debug\}.com:
-    $(SUBMAKE) "DEBUG=1" "PROGRAM=$(*F)" "MEM=T" $(MAKEDEFS) com.hl dirs $(ODT)\$(*F).obj $(BDT)\$(*F).com
+    $(SUBMAKE) "DEBUG=1" "PROGRAM=$(*F)" "MEM=T" "STARTCOM=" $(MAKEDEFS) com.hl dirs $(ODT)\$(*F).obj $(BDT)\$(*F).com
 
 {$(S)\}.asm{$(R)\Debug\}.exe:
     @echo Applying $(T).mak inference rule (PROGRAM undefined) {$$(S)\}.asm{$$(R)\Debug\}.exe:
@@ -861,11 +863,11 @@ DOS_INFERENCE_RULES=1
 #   Rules for the tiny memory model. Output into the $(R)[\Debug][\OBJ\T] directory.
 {$(S)\}.asm{$(BNT)\}.com:
     @echo Applying $(T).mak inference rule (PROGRAM undefined) {$$(S)\}.asm{$$(BNT)\}.com:
-    $(SUBMAKE) "DEBUG=0" "PROGRAM=$(*F)" "MEM=T" $(MAKEDEFS) com.hl dirs $(ONT)\$(*F).obj $(BNT)\$(*F).com
+    $(SUBMAKE) "DEBUG=0" "PROGRAM=$(*F)" "MEM=T" "STARTCOM=" $(MAKEDEFS) com.hl dirs $(ONT)\$(*F).obj $(BNT)\$(*F).com
 
 {$(S)\}.asm{$(BDT)\}.com:
     @echo Applying $(T).mak inference rule (PROGRAM undefined) {$$(S)\}.asm{$$(BDT)\}.com:
-    $(SUBMAKE) "DEBUG=1" "PROGRAM=$(*F)" "MEM=T" $(MAKEDEFS) com.hl dirs $(ODT)\$(*F).obj $(BDT)\$(*F).com
+    $(SUBMAKE) "DEBUG=1" "PROGRAM=$(*F)" "MEM=T" "STARTCOM=" $(MAKEDEFS) com.hl dirs $(ODT)\$(*F).obj $(BDT)\$(*F).com
 
 #   Rules for the small memory model. Output into the $(R)[\Debug][\OBJ\S] directory.
 {$(S)\}.asm{$(BNS)\}.exe:
@@ -974,7 +976,7 @@ com.hl exe.hl lib.hl dll.hl obj.hl res.hl:
 
 .asm.com:
     @echo Applying $(T).mak inference rule (PROGRAM defined) .asm.com:
-    $(SUBMAKE) "PROGRAM=$(*F)" "MEM=T" $(MAKEDEFS) com.hl dirs $(O_T)\$(*F).obj $(B_T)\$(*F).com
+    $(SUBMAKE) "PROGRAM=$(*F)" "MEM=T" "STARTCOM=" $(MAKEDEFS) com.hl dirs $(O_T)\$(*F).obj $(B_T)\$(*F).com
     if exist $(B)\$(@F) copy /y $(B)\$(@F) $(R)$(DS)
 
 .mak.lib:
