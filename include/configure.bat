@@ -207,13 +207,14 @@
 :#   2021-11-16 JFL Added support for Visual Studio 17/2022.                  *
 :#   2022-06-21 JFL Changed the NMINCLUDE detect file from debugm.h to all.mak.
 :#   2023-01-16 JFL Added %THIS_SDK% and THIS_SDK_LIST to put in config.h.    *
+:#   2023-12-06 JFL Fixed the -vsn and -vsp options.                          *
 :#                                                                            *
 :#      © Copyright 2016-2020 Hewlett Packard Enterprise Development LP       *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2023-01-16"
+set "VERSION=2023-12-06"
 set "SCRIPT=%~nx0"				&:# Script name
 set "SPATH=%~dp0" & set "SPATH=!SPATH:~0,-1!"	&:# Script path, without the trailing \
 set  "ARG0=%~f0"				&:# Script full pathname
@@ -1645,25 +1646,36 @@ set "VC=%~4"
 call :findvs.init
 set "SEARCH_IN=call :FindVsIn !PROC[%~1]!"
 :# Generate VSALIAS and VSTUDIO, based on the -vsn and -vsp options.
+%ECHOVARS.D% VSNAME VSPATH
 if defined VSNAME if defined VSN[%VSNAME%] set "VSNAME=!VSN[%VSNAME%]!"
 if defined VSNAME if defined VSA[%VSNAME%] ( :# Convert a VS name to a VS alias & path
   set "VSALIAS=!VSA[%VSNAME%]!"
   if not defined VSPATH set "VSTUDIO=!VSP[%VSNAME%]!"
 )
 if defined VSPATH ( :# Convert a VS path to a VS alias & path
-  set "VSTUDIO=%VSPATH%"
+  set "VSTUDIO=!VSPATH!"
   if not defined VSNAME (
     :# Get the last token in the path
-    for %%t in (%VSPATH:\= %) do set "VSNAME=%%t"
+    for %%t in (!VSPATH:\= !) do set "VSNAME=%%t"
     :# Remove the trailing .0 if present
     set "VSNAME=!VSNAME:.0=!"
     if defined VSN[!VSNAME!] for %%n in (!VSNAME!) do set "VSNAME=!VSN[%%n]!"
     for %%n in (!VSNAME!) do set "VSALIAS=!VSA[%%n]!"
   )
 )
+%ECHOVARS.D% VSALIAS VSTUDIO
 :# If specified on the command line, and looking reasonably valid, then use it.
-if defined VSTUDIO call :FindVsIn %2 %VSALIAS% "%VSTUDIO%" "%VC15S%" BIN15 && goto :foundvs
-if defined VSTUDIO call :FindVsIn %2 %VSALIAS% "%VSTUDIO%" "VC VC7 VC98" BIN && goto :foundvs
+set "VSPATH_TYPE="
+if defined VSTUDIO ( :# Check if VSTUDIO is an absolute or relative path
+  if "!VSTUDIO:~0,1!"=="\" set "VSPATH_TYPE=ABS"
+  if "!VSTUDIO:~1,1!"==":" set "VSPATH_TYPE=ABS"
+  if not defined VSPATH_TYPE set "VSPATH_TYPE=REL"
+)
+%ECHOVARS.D% VSPATH_TYPE
+if "%VSPATH_TYPE%"=="ABS" call :FindVsIn %2 %VSALIAS% "%VSTUDIO%" "%VC15S%" BIN15 && goto :foundvs
+if "%VSPATH_TYPE%"=="ABS" call :FindVsIn %2 %VSALIAS% "%VSTUDIO%" "VC VC7 VC98" BIN && goto :foundvs
+if "%VSPATH_TYPE%"=="REL" for %%p in (%PF64AND32%) do call :FindVsIn %2 %VSALIAS% "%%~p\%VSTUDIO%" "%VC15S%" BIN15 && goto :foundvs
+if "%VSPATH_TYPE%"=="REL" for %%p in (%PF64AND32%) do call :FindVsIn %2 %VSALIAS% "%%~p\%VSTUDIO%" "VC VC7 VC98" BIN && goto :foundvs
 :# If VS' vcvars*.bat has already been run manually, then use it.
 if defined VSINSTALLDIR call :FindVsIn %2 %VSALIAS% "%VSINSTALLDIR%" "%VC15S%" BIN15 && goto :foundvs
 if defined VSINSTALLDIR call :FindVsIn %2 %VSALIAS% "%VSINSTALLDIR%" "VC VC7 VC98" BIN && goto :foundvs
@@ -1687,7 +1699,7 @@ set "SEARCH_IN=call :FindVsIn !PROC[%~1]!"
 goto :lastvsXP	&:# Skip all Visual Studio versions that don't support WinXP development anymore
 
 :FindVsIn %1=Proc %2=Alias %3=VS_DIR %4=VC_DIRS %5=BIN_DATABASE	&:# Test if Visual Studio is present in the proposed directory
-%ECHO.D% :# Searching a Visual Studio %2 %1 C compiler.
+%ECHO.D% :# Searching a Visual Studio %2 %1 C compiler in %3 and %4 and %5
 set "%VS%=" & set "%VC%=" & set "%VC%.BIN="
 set "NEEDSHORTPATH=0" &:# Will be set to 1 if we have to use VS 7.
 set "\*="
