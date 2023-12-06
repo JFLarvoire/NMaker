@@ -174,7 +174,7 @@ Import NMaker files in your project this way:
    
  - Commit the .gitmodules file and the NMaker directory into the git repository.
 
-Later on, if desired, it's possible to get the NMaker updates by running `git submodule update`.
+Later on, if desired, it's possible to get the NMaker updates by running `git submodule update --remote`.
    
 
 ### Examples
