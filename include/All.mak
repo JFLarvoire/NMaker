@@ -155,6 +155,7 @@
 #    2022-12-22 JFL `make clean` now deletes the $(OUTDIR)\SRC directory.     #
 #    2023-11-28 JFL Added rules for building DLLs from C or C++ files.        #
 #    2023-12-05 JFL Added rules for building a .com from a .asm source.       #
+#    2023-12-09 JFL Added support for the WIN16 target OS.		      #
 #		    							      #
 #       © Copyright 2016-2017 Hewlett Packard Enterprise Development LP       #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
@@ -230,7 +231,7 @@ OS=$(OS:/ =)	# Remove the initial / and the first following space
 OS=$(OS:/=)	# Again, in the unlikely case that none of the default OSs matched
 !ENDIF
 
-ALL_OS_TYPES=BIOS LODOS DOS WIN95 WIN32 IA64 WIN64 ARM ARM64 # All managed types
+ALL_OS_TYPES=BIOS LODOS DOS WIN16 WIN95 WIN32 IA64 WIN64 ARM ARM64 # All managed types
 
 !IF "$(OS)"=="all"
 OS=
@@ -242,6 +243,9 @@ OS=$(OS) LODOS
 !ENDIF
 !IF DEFINED(DOS_CC) && EXIST("$(MAKEPATH)\dos.mak")
 OS=$(OS) DOS
+!ENDIF
+!IF DEFINED(DOS_CC) && EXIST("$(MAKEPATH)\WIN16.mak")
+OS=$(OS) WIN16
 !ENDIF
 !IF DEFINED(WIN95_CC) && DEFINED(WIN32_CC) && EXIST("$(MAKEPATH)\WIN95.mak") # Do not combine with next line, else there's a syntax error if WIN95_CC is not defined.
 !IF ($(WIN95_CC) != $(WIN32_CC)) # CC paths have "quotes" already
@@ -274,6 +278,7 @@ OS=$(OS) ARM64
 DOBIOS=0
 DOLODOS=0
 DODOS=0
+DOWIN16=0
 DOWIN95=0
 DOWIN32=0
 DOIA64=0
@@ -288,6 +293,9 @@ DOLODOS=1
 !ENDIF
 !IF [for %o in ($(OS)) do @if /i "%o"=="DOS" exit 1]
 DODOS=1
+!ENDIF
+!IF [for %o in ($(OS)) do @if /i "%o"=="WIN16" exit 1]
+DOWIN16=1
 !ENDIF
 !IF [for %o in ($(OS)) do @if /i "%o"=="WIN95" exit 1]
 DOWIN95=1
@@ -307,11 +315,12 @@ DOARM=1
 !IF [for %o in ($(OS)) do @if /i "%o"=="ARM64" exit 1]
 DOARM64=1
 !ENDIF
-# !MESSAGE DOBIOS=$(DOBIOS) DOLODOS=$(DOLODOS) DODOS=$(DODOS) DOWIN32=$(DOWIN32) DOWIN64=$(DOWIN64)
+# !MESSAGE DOBIOS=$(DOBIOS) DOLODOS=$(DOLODOS) DODOS=$(DODOS) DOWIN16=$(DOWIN16) DOWIN95=$(DOWIN95) DOWIN32=$(DOWIN32) DOWIN64=$(DOWIN64)
 # Generate guard macros for each OS
 IFBIOS=rem
 IFLODOS=rem
 IFDOS=rem
+IFWIN16=rem
 IFWIN95=rem
 IFWIN32=rem
 IFIA64=rem
@@ -326,6 +335,9 @@ IFLODOS=
 !ENDIF
 !IF $(DODOS)
 IFDOS=
+!ENDIF
+!IF $(DOWIN16)
+IFWIN16=
 !ENDIF
 !IF $(DOWIN95)
 IFWIN95=
@@ -345,7 +357,7 @@ IFARM=
 !IF $(DOARM64)
 IFARM64=
 !ENDIF
-# !MESSAGE IFBIOS=$(IFBIOS) IFLODOS=$(IFLODOS) IFDOS=$(IFDOS) IFWIN32=$(IFWIN32) IFIA64=$(IFIA64) IFWIN64=$(IFWIN64) IFARM=$(IFARM) IFARM64=$(IFARM64)
+# !MESSAGE IFBIOS=$(IFBIOS) IFLODOS=$(IFLODOS) IFDOS=$(IFDOS) IFWIN16=$(IFWIN16) IFWIN95=$(IFWIN95) IFWIN32=$(IFWIN32) IFIA64=$(IFIA64) IFWIN64=$(IFWIN64) IFARM=$(IFARM) IFARM64=$(IFARM64)
 
 MSG=>con echo		# Command for writing a progress message on the console
 HEADLINE=$(MSG).&$(MSG)	# Output a blank line, then a message
@@ -391,6 +403,7 @@ _OBJ = .obj
     $(IFBIOS)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\BIOS.mak"  $(MAKEDEFS) $@
     $(IFLODOS) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\LODOS.mak" $(MAKEDEFS) $@
     $(IFDOS)   $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\DOS.mak"   $(MAKEDEFS) $@
+    $(IFWIN16) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN16.mak" $(MAKEDEFS) $@
     $(IFWIN95) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN95.mak" $(MAKEDEFS) $@
     $(IFWIN32) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN32.mak" $(MAKEDEFS) $@
     $(IFIA64)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\IA64.mak"  $(MAKEDEFS) $@
@@ -418,6 +431,7 @@ _OBJ = .obj
     $(IFBIOS)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\BIOS.mak"  $(MAKEDEFS) $@
     $(IFLODOS) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\LODOS.mak" $(MAKEDEFS) $@
     $(IFDOS)   $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\DOS.mak"   $(MAKEDEFS) $@
+    $(IFWIN16) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN16.mak" $(MAKEDEFS) $@
     $(IFWIN95) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN95.mak" $(MAKEDEFS) $@
     $(IFWIN32) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN32.mak" $(MAKEDEFS) $@
     $(IFIA64)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\IA64.mak"  $(MAKEDEFS) $@
@@ -452,6 +466,7 @@ _OBJ = .obj
     $(IFBIOS)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\BIOS.mak"  $(MAKEDEFS) $@
     $(IFLODOS) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\LODOS.mak" $(MAKEDEFS) $@
     $(IFDOS)   $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\DOS.mak"   $(MAKEDEFS) $@
+    $(IFWIN16) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN16.mak" $(MAKEDEFS) $@
     $(IFWIN95) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN95.mak" $(MAKEDEFS) $@
     $(IFWIN32) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN32.mak" $(MAKEDEFS) $@
     $(IFIA64)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\IA64.mak"  $(MAKEDEFS) $@
@@ -495,6 +510,7 @@ _OBJ = .obj
     $(IFBIOS)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\BIOS.mak"  $(MAKEDEFS) $(OD)BIOS\$@
     $(IFLODOS) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\LODOS.mak" $(MAKEDEFS) $(OD)LODOS\$@
     $(IFDOS)   $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\DOS.mak"   $(MAKEDEFS) $(OD)DOS\$@
+    $(IFWIN16) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN16.mak" $(MAKEDEFS) $(OD)WIN16\$@
     $(IFWIN95) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN95.mak" $(MAKEDEFS) $(OD)WIN95\$@
     $(IFWIN32) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN32.mak" $(MAKEDEFS) $(OD)WIN32\$@
     $(IFIA64)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\IA64.mak"  $(MAKEDEFS) $(OD)IA64\$@
@@ -513,6 +529,7 @@ _OBJ = .obj
     $(IFBIOS)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\BIOS.mak"  $(MAKEDEFS) $(OD)BIOS\$@
     $(IFLODOS) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\LODOS.mak" $(MAKEDEFS) $(OD)LODOS\$@
     $(IFDOS)   $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\DOS.mak"   $(MAKEDEFS) $(OD)DOS\$@
+    $(IFWIN16) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN16.mak" $(MAKEDEFS) $(OD)WIN16\$@
     $(IFWIN95) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN95.mak" $(MAKEDEFS) $(OD)WIN95\$@
     $(IFWIN32) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN32.mak" $(MAKEDEFS) $(OD)WIN32\$@
     $(IFIA64)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\IA64.mak"  $(MAKEDEFS) $(OD)IA64\$@
@@ -538,6 +555,7 @@ _OBJ = .obj
     $(IFBIOS)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\BIOS.mak"  $(MAKEDEFS) $(OD)BIOS\$@
     $(IFLODOS) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\LODOS.mak" $(MAKEDEFS) $(OD)LODOS\$@
     $(IFDOS)   $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\DOS.mak"   $(MAKEDEFS) $(OD)DOS\$@
+    $(IFWIN16) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN16.mak" $(MAKEDEFS) $(OD)WIN16\$@
     $(IFWIN95) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN95.mak" $(MAKEDEFS) $(OD)WIN95\$@
     $(IFWIN32) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN32.mak" $(MAKEDEFS) $(OD)WIN32\$@
     $(IFIA64)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\IA64.mak"  $(MAKEDEFS) $(OD)IA64\$@
@@ -743,6 +761,7 @@ clean mostlyclean distclean: NUL
     $(IFBIOS)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\BIOS.mak"  $(MAKEDEFS) clean
     $(IFLODOS) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\LODOS.mak" $(MAKEDEFS) clean
     $(IFDOS)   $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\DOS.mak"   $(MAKEDEFS) clean
+    $(IFWIN16) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN16.mak" $(MAKEDEFS) clean
     $(IFWIN95) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN95.mak" $(MAKEDEFS) clean
     $(IFWIN32) $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\WIN32.mak" $(MAKEDEFS) clean
     $(IFIA64)  $(MAKE) $(MAKEFLAGS_) /f "$(MAKEPATH)\IA64.mak"  $(MAKEDEFS) clean

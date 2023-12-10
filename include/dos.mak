@@ -169,13 +169,14 @@
 #		    config.h file, included ahead of all C/CPP sources.	      #
 #    2023-11-27 JFL Avoid passing $(T_DEFS) twice in the AFLAGS variable.     #
 #    2023-12-05 JFL Fixed rules for building a .com from a .asm source.       #
+#    2023-12-10 JFL Updated .SUFFIXES to enable compiling WIN16 resources.    #
 #		    							      #
 #      © Copyright 2016-2018 Hewlett Packard Enterprise Development LP        #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
 ###############################################################################
 
 .SUFFIXES: # Clear the predefined suffixes list.
-.SUFFIXES: .com .exe .sys .obj .asm .c .r .cpp .cc .cxx .mak .rc .hl
+.SUFFIXES: .com .exe .sys .obj .asm .c .r .cpp .cc .cxx .res .rc .def .mak .hl
 
 ###############################################################################
 #									      #

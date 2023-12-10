@@ -63,6 +63,7 @@ arm64.mak       | Rules for building the Windows 64-bits ARM version of a progra
 bios.mak        | Rules for building the PC BIOS 16-bits version of a program
 dos.mak         | Rules for building the MS-DOS 16-bits version of a program
 lodos.mak       | Rules for building MS-DOS device drivers and TSRs
+win16.mak       | Rules for building the Windows 16-bits version of a program for Windows 3.x and 95/98/ME
 win32.mak       | Rules for building the Windows 32-bits x86 version of a program
 win64.mak       | Rules for building the Windows 64-bits amd64 version of a program
 win95.mak       | Rules for building a win32 version of a program compatible with Windows 95
@@ -84,20 +85,21 @@ configure.bat will automatically recurse in all subdirectories with C/C++ source
 
 By default, all output goes in target-OS-specific subdirectories:
 
-OS              | Base output directory
---------------- | --------------------------------
-PC BIOS         | bin\BIOS\
-MS-DOS drivers  | bin\LODOS\
-MS-DOS          | bin\DOS\
-Windows 95      | bin\WIN95\
-Windows XP+ x86 | bin\WIN32\
-Windows x86_64  | bin\WIN64\
-Windows arm     | bin\ARM\
-Windows arm64   | bin\ARM64\
-Linux i686      | bin\Linux.i686\
-Linux x86_64    | bin\Linux.x86_64\
-Mac OS          | bin\Darwin.x86_64\
-FreeBSD         | bin\FreeBSD.amd64\
+OS                | Base output directory
+----------------- | --------------------------------
+PC BIOS           | bin\BIOS\
+MS-DOS drivers    | bin\LODOS\
+MS-DOS            | bin\DOS\
+Windows 3.x to ME | bin\WIN16\
+Windows 95        | bin\WIN95\
+Windows XP+ x86   | bin\WIN32\
+Windows x86_64    | bin\WIN64\
+Windows arm       | bin\ARM\
+Windows arm64     | bin\ARM64\
+Linux i686        | bin\Linux.i686\
+Linux x86_64      | bin\Linux.x86_64\
+Mac OS            | bin\Darwin.x86_64\
+FreeBSD           | bin\FreeBSD.amd64\
 
 Within each target directory, the output files are located in the base and various subdirectories:
 

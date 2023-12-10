@@ -208,13 +208,14 @@
 :#   2022-06-21 JFL Changed the NMINCLUDE detect file from debugm.h to all.mak.
 :#   2023-01-16 JFL Added %THIS_SDK% and THIS_SDK_LIST to put in config.h.    *
 :#   2023-12-06 JFL Fixed the -vsn and -vsp options.                          *
+:#   2023-12-10 JFL Locate the msdos.exe tool, necessary to build WIN16 apps. *
 :#                                                                            *
 :#      © Copyright 2016-2020 Hewlett Packard Enterprise Development LP       *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2023-12-06"
+set "VERSION=2023-12-10"
 set "SCRIPT=%~nx0"				&:# Script name
 set "SPATH=%~dp0" & set "SPATH=!SPATH:~0,-1!"	&:# Script path, without the trailing \
 set  "ARG0=%~f0"				&:# Script full pathname
@@ -1517,6 +1518,19 @@ SET VC16.LK="%VC16%\BIN\LINK.EXE"
 SET "VC16.LIBPATH=%VC16%\LIB"
 SET VC16.LB="%VC16%\BIN\LIB.EXE"
 SET VC16.RC="%VC16%\BIN\RC.EXE"
+:# The resource compiler is the only important development tool that's still an MS-DOS application.
+:# Search for an MS-DOS container application that runs DOS apps in Windows.
+:# The best one I know of is msdos.exe from http://takeda-toshiya.my.coocan.jp/msdos/index.html
+for %%m in (msdos.exe) do set "msdos.exe=%%~$PATH:m"
+%VC16.RC% /? >NUL 2>&1 &:# Check if rc.exe starts. ErrorLevel is 1 if yes, or 216 if not.
+if errorlevel 200 ( :# This version of Windows cannot run DOS apps
+  if defined msdos.exe (
+    SET VC16.RC="%msdos.exe%" "%VC16%\BIN\RC.EXE"
+  ) else (
+    %ECHO% Warning: Can't find msdos.exe. DOS applications will be buildable, but not WIN16 applications.
+    %ECHO%          Get msdos.exe from http://takeda-toshiya.my.coocan.jp/msdos/index.html
+  )
+)
 SET VC16.MS="%VC16%\BIN\MAPSYM.EXE"
 :# Note: The WinICE SDK had an improved version of mapsym, called msym.exe. (Supporting symbols in 32-bits segments?)
 :# SET VC16.MS=C:\SDK\WINICE\MSYM.EXE
@@ -2717,6 +2731,12 @@ for %%s in (
   %CONFIG% SET "%%k_LIBPATH=!%%l.LIBPATH!" ^&:# Libraries paths for %%m linking
   %CONFIG% SET "%%k_WINSDK=!%%l.WINSDK!" ^&:# Microsoft Windows %%m SDK
   %CONFIG% SET "%%k_WINSDKINC=!%%l.WINSDKINC!" ^&:# Microsoft Windows %%m SDK Include directory
+)
+
+:# Other tools
+if defined msdos.exe (
+  %CONFIG%.
+  %CONFIG% SET "DOS_VM=!msdos.exe!" ^&:# A DOS container execution application
 )
 
 :# A few global configuration variables
