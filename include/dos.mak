@@ -171,6 +171,7 @@
 #    2023-12-05 JFL Fixed rules for building a .com from a .asm source.       #
 #    2023-12-10 JFL Updated .SUFFIXES to enable compiling WIN16 resources.    #
 #    2023-12-11 JFL Fixed the final copying of .com programs to bin\DOS.      #
+#		    Added specific rules for linking WIN16 executables.       #
 #		    							      #
 #      © Copyright 2016-2018 Hewlett Packard Enterprise Development LP        #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
@@ -1261,6 +1262,7 @@ OBJECTS=$(O)\$(PROGRAM).obj
 
 # Generic rule to build program
 !IF !DEFINED(SKIP_THIS)
+!IF "$(T)"!="WIN16" # DOS or LODOS or BIOS
 $(B)\$(EXENAME): $(OBJECTS:+=) $(LIBRARIES) # The dependency on libraries forces relinking if one of the libraries has changed
     @echo Applying $(T).mak build rule $$(B)\$$(EXENAME):
     $(MSG) Linking $(B)\$(@F) ...
@@ -1280,6 +1282,32 @@ $(LFLAGS) /knoweas /stack:32768
     -$(MAPSYM) $(*F).map
     cd $(MAKEDIR)
     $(MSG) ... done.
+!ELSE # WIN16 executables
+$(O)\$(EXENAME): $(OBJECTS:+=) $(PROGRAM).def
+    @echo Applying $(T).mak build rule $$(O)\$$(EXENAME):
+    $(MSG) Linking object files into $@ ...
+    set LIB=$(LIB)
+    set PATH=$(PATH)
+    copy << $(L)\$(*B).LNK
+$(OBJECTS:+=)
+"$@"
+$(L)\$(*F)
+$(LIBS)
+$(PROGRAM).def /NOD $(LFLAGS)
+<<NOKEEP
+    @echo "	type $(L)\$(*B).LNK"
+    @$(COMSPEC) /c "type $(L)\$(*B).LNK"
+    $(LK) @$(L)\$(*B).LNK || $(REPORT_FAILURE)
+    rem $(LK) /NOD $(OBJECTS:+=),$@,$(L)\$(*F),$(LIBS),$(PROGRAM).def $(LFLAGS) || $(REPORT_FAILURE)
+    $(MSG) ... done.
+
+$(B)\$(EXENAME): $(O)\$(EXENAME) $(O)\$(PROGRAM).res
+    @echo Applying $(T).mak build rule $$(B)\$$(EXENAME):
+    $(MSG) Linking ressources into $@ ...
+    copy /y $(O)\$(EXENAME) $(B)
+    $(RC) $(O)\AccentsW.res $@
+    echo >con ... done.
+!ENDIF
 
 # Generic rule to build a library
 $(B)\$(PROGRAM).lib: $(OBJECTS:+=) $(LIBRARIES)
