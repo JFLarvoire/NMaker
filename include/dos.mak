@@ -170,6 +170,7 @@
 #    2023-11-27 JFL Avoid passing $(T_DEFS) twice in the AFLAGS variable.     #
 #    2023-12-05 JFL Fixed rules for building a .com from a .asm source.       #
 #    2023-12-10 JFL Updated .SUFFIXES to enable compiling WIN16 resources.    #
+#    2023-12-11 JFL Fixed the final copying of .com programs to bin\DOS.      #
 #		    							      #
 #      © Copyright 2016-2018 Hewlett Packard Enterprise Development LP        #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
@@ -579,7 +580,7 @@ DOS_INFERENCE_RULES=1
 
 .asm.com:
     @echo Applying $(T).mak inference rule (PROGRAM undefined) .asm.com:
-    $(SUBMAKE) "PROGRAM=$(*F)" "MEM=T" "STARTCOM=" $(MAKEDEFS) com.hl dirs $(O_T)\$(*F).obj $(B_T)\$(*F).com
+    $(SUBMAKE) "PROGRAM=$(*F)" $(MAKEDEFS) $@
 
 .mak.lib:
     @echo Applying $(T).mak inference rule (PROGRAM undefined) .mak.lib:
@@ -968,17 +969,17 @@ com.hl exe.hl lib.hl dll.hl obj.hl res.hl:
 .cpp.com:
     @echo Applying $(T).mak inference rule (PROGRAM defined) .cpp.com:
     $(SUBMAKE) "PROGRAM=$(*F)" "MEM=T" $(MAKEDEFS) com.hl dirs $(O_T)\$(*F).obj $(B_T)\$(*F).com
-    if exist $(B)\$(@F) copy /y $(B)\$(@F) $(R)$(DS)
+    if exist $(B_T)\$(@F) copy /y $(B_T)\$(@F) $(R)$(DS)
 
 .c.com:
     @echo Applying $(T).mak inference rule (PROGRAM defined) .c.com:
     $(SUBMAKE) "PROGRAM=$(*F)" "MEM=T" $(MAKEDEFS) com.hl dirs $(O_T)\$(*F).obj $(B_T)\$(*F).com
-    if exist $(B)\$(@F) copy /y $(B)\$(@F) $(R)$(DS)
+    if exist $(B_T)\$(@F) copy /y $(B_T)\$(@F) $(R)$(DS)
 
 .asm.com:
     @echo Applying $(T).mak inference rule (PROGRAM defined) .asm.com:
     $(SUBMAKE) "PROGRAM=$(*F)" "MEM=T" "STARTCOM=" $(MAKEDEFS) com.hl dirs $(O_T)\$(*F).obj $(B_T)\$(*F).com
-    if exist $(B)\$(@F) copy /y $(B)\$(@F) $(R)$(DS)
+    if exist $(B_T)\$(@F) copy /y $(B_T)\$(@F) $(R)$(DS)
 
 .mak.lib:
     @echo Applying $(T).mak inference rule (PROGRAM defined) .mak.lib:
