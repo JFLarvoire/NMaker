@@ -172,6 +172,7 @@
 #    2023-12-10 JFL Updated .SUFFIXES to enable compiling WIN16 resources.    #
 #    2023-12-11 JFL Fixed the final copying of .com programs to bin\DOS.      #
 #		    Added specific rules for linking WIN16 executables.       #
+#    2024-01-08 JFL Fixed bugs in the $(CONV_SOURCES) batch script.           #
 #		    							      #
 #      © Copyright 2016-2018 Hewlett Packard Enterprise Development LP        #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
@@ -1419,7 +1420,6 @@ $(REMOVE_UTF8_BOM): "$(THIS_MAKEFILE)" # Convert source to DOS encoding _and_ pr
 	    $(CONV) 8 d "%~1" "%~2" -B 
 	  )
 	)
-	echo>$(CONVERT_STAMP) %DATE% %TIME%
 <<KEEP
 
 $(CONV_SCRIPT): "$(THIS_MAKEFILE)"	# Poor man's version of conv.exe, limited to what this make file needs
@@ -1487,18 +1487,21 @@ $(COMPACT_PATHS): "$(THIS_MAKEFILE)"
 $(CONV_SOURCES): "$(THIS_MAKEFILE)"
     $(MSG) Generating script $@
     copy <<$@ NUL
+        @echo off
         :# If config.$(COMPUTERNAME).bat changed, then ALL sources must be converted
-	set "TESTDIR="
-	for %%f in ("$(THIS_MAKEFILE)" config.$(COMPUTERNAME).bat) do (
-	  if not defined TESTDIR for /f "usebackq delims=: tokens=2" %%x in (
-	    `"xcopy /c /d /l /y %%f $(CONVERT_STAMP) 2^>NUL ^| findstr ":""`
-	  ) do set "TESTDIR=NOWHERE\" & rem :# Makes sure that xcopy will list every file as needing to be copied
+	set "DESTDIR="
+	if not exist $(CONVERT_STAMP) (
+	  set "DESTDIR=NOWHERE" & rem :# Makes sure that xcopy will list every file as needing to be copied
+	) else for %%f in ("$(THIS_MAKEFILE)" config.$(COMPUTERNAME).bat) do (
+	  if not defined DESTDIR for /f "usebackq delims=: tokens=2" %%x in (
+	    `xcopy /c /d /l /y %%f $(CONVERT_STAMP) 2^>NUL ^| findstr ":"`
+	  ) do set "DESTDIR=NOWHERE" & rem :# Makes sure that xcopy will list every file as needing to be copied
 	)
-	if not defined TESTDIR set "TESTDIR=$(S2)" &:# Makes sure xcopy only reports the files that have changed
+	if not defined DESTDIR set "DESTDIR=$(S2)" &:# Makes sure xcopy only reports the files that have changed
 	:# Enumerate the files that need being converted
 	set "MSGDONE="
 	for %%e in (h c r cpp) do for /f "delims=: tokens=2" %%f in (
-	  'xcopy /c /d /l /y *.%%e %TESTDIR% 2^>NUL ^| findstr ":"'
+	  'xcopy /c /d /i /l /y *.%%e %DESTDIR% 2^>NUL ^| findstr ":"'
 	) do (
 	  if not defined MSGDONE (
 	    set "MSGDONE=1"
@@ -1507,7 +1510,10 @@ $(CONV_SOURCES): "$(THIS_MAKEFILE)"
 	  $(MSG) %%f
 	  call $(REMOVE_UTF8_BOM) %%f $(S2)\%%f
 	)
-	if defined MSGDONE $(MSG) ... done.
+	if defined MSGDONE (
+	  >$(CONVERT_STAMP) echo %DATE% %TIME%
+	  >con echo ... done.
+	)
 <<KEEP
 
 # Remove BOMs from all modified C source and include files, and convert them to the OEM character set
