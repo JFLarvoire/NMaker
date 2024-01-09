@@ -116,13 +116,15 @@
 :#   2021-02-04 JFL Do not count _CRT_SECURE_NO_WARNINGS macros as warnings.  *
 :#   2021-06-03 JFL Avoid counting constants like NO_WARNINGS as warnings.    *
 :#   2023-01-03 JFL Define MAKERELDIR with the relative path from the start.  *
+:#   2024-01-05 JFL Delete the previous log file in all cases.                *
+:#                  Don't rename the log file after the goal when -l is used. *
 :#                                                                            *
 :#      © Copyright 2016-2020 Hewlett Packard Enterprise Development LP       *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2023-01-03"
+set "VERSION=2024-01-05"
 set "SCRIPT=%~nx0"				&:# Script name
 set "SPATH=%~dp0" & set "SPATH=!SPATH:~0,-1!"	&:# Script path, without the trailing \
 set  "ARG0=%~f0"				&:# Script full pathname
@@ -1588,9 +1590,10 @@ if defined LINK_OUTDIR ( :# Restore the initial MD_OUTDIR saved above
 if "%DOLOG%"=="1" if not defined LOGFILE ( :# Create one, in OUTDIR if defined
   set "LOGFILE=make.log"
   set "LOGFILE=%OUTDIR\%!LOGFILE!"
-  if exist "!LOGFILE!" del "!LOGFILE!"
   call :Debug.SetLog "!LOGFILE!"
+  set "IS_TEMP_LOG=1" &rem :# This will be renamed below based on the main goal
 ) &:# else keep using the parent instance log file
+if exist "!LOGFILE!" del "!LOGFILE!"
 
 :# Start logging by recording the make command.
 %LOG% make %*
@@ -1742,16 +1745,18 @@ if %MAKEDEPTH%==0 if defined LOGFILE ( :# If this is the top-level instance of m
   :# If there's still no goal, use the current directory name.
   if not defined GOAL set "GOAL=!CD0!"
   %ECHOVARS.D% GOAL LOGDIR
-  :# Rename %LOGFILE% after the %GOAL%, and display the build log.
-  set LOGFILE2=!GOAL!.log
-  if not defined LOGDIR if defined OUTDIR set "LOGDIR=%OUTDIR%"
-  if defined LOGDIR set "LOGFILE2=!LOGDIR!\!LOGFILE2!"
-  if not "!LOGFILE2!"=="!LOGFILE!" (
-    if exist "!LOGFILE2!" del "!LOGFILE2!"
-    move "!LOGFILE!" "!LOGFILE2!" >nul
-    call :Debug.SetLog "!LOGFILE2!"
+  if defined IS_TEMP_LOG (
+    :# Rename %LOGFILE% after the %GOAL%, and display the build log.
+    set LOGFILE2=!GOAL!.log
+    if not defined LOGDIR if defined OUTDIR set "LOGDIR=%OUTDIR%"
+    if defined LOGDIR set "LOGFILE2=!LOGDIR!\!LOGFILE2!"
+    if not "!LOGFILE2!"=="!LOGFILE!" (
+      if exist "!LOGFILE2!" del "!LOGFILE2!"
+      move "!LOGFILE!" "!LOGFILE2!" >nul
+      call :Debug.SetLog "!LOGFILE2!"
+    )
+    %ECHOVARS.D% LOGFILE
   )
-  %ECHOVARS.D% LOGFILE
 )
 
 if %MAKEDEPTH%==0 ( :# If this is the top-level instance of make.bat, show the final result
