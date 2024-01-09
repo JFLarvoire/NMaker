@@ -65,6 +65,8 @@
 :#                                                                            *
 :#                  When building an SDK that may have references to itself,  *
 :#                  then use the %THIS_SDK% macro once. Ex:                   *
+:#                  The example below defines the HAS_SYSLIB variable, but    *
+:#                  does not add the SYSLIB path in the INCLUDE variable:     *
 :#                                                                            *
 :#                  %BEGIN_SDK_DEFS%                                          *
 :#                  %THIS_SDK% SYSLIB                                         *
@@ -209,6 +211,8 @@
 :#   2023-01-16 JFL Added %THIS_SDK% and THIS_SDK_LIST to put in config.h.    *
 :#   2023-12-06 JFL Fixed the -vsn and -vsp options.                          *
 :#   2023-12-10 JFL Locate the msdos.exe tool, necessary to build WIN16 apps. *
+:#   2024-01-08 JFL Avoid an error popup when checking MSVC 1.5 rc.exe.       *
+:#                  Added support for the new STINCLUDE variable.             *
 :#                                                                            *
 :#      © Copyright 2016-2020 Hewlett Packard Enterprise Development LP       *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
@@ -1522,8 +1526,9 @@ SET VC16.RC="%VC16%\BIN\RC.EXE"
 :# Search for an MS-DOS container application that runs DOS apps in Windows.
 :# The best one I know of is msdos.exe from http://takeda-toshiya.my.coocan.jp/msdos/index.html
 for %%m in (msdos.exe) do set "msdos.exe=%%~$PATH:m"
-%VC16.RC% /? >NUL 2>&1 &:# Check if rc.exe starts. ErrorLevel is 1 if yes, or 216 if not.
-if errorlevel 200 ( :# This version of Windows cannot run DOS apps
+:# In case another version of MSVC includes a 32-bits version rc.exe, check which size it is 
+"%VC16%\BIN\EXEHDR.EXE" %VC16.RC% >NUL 2>&1 &:# Check if exehdr.exe can process rc.exe. ErrorLevel is 0 if yes, or 1 if not.
+if not errorlevel 1 ( :# This version of rc.exe is a DOS app that exehdr can process
   if defined msdos.exe (
     SET VC16.RC="%msdos.exe%" "%VC16%\BIN\RC.EXE"
   ) else (
@@ -2329,9 +2334,12 @@ if not defined CON.CS (
 %ECHOVARS.D% WIN.CP DOS.CP CON.CP
 
 :# Known SDKs:
-set "SDK.NMINCLUDE.NAME=System Tools global C includes"
+set "SDK.NMINCLUDE.NAME=NMaker C include files"
 set "SDK.NMINCLUDE.DIR=INCLUDE"
-set "SDK.NMINCLUDE.FILE=All.mak"
+set "SDK.NMINCLUDE.FILE=debugm.h"
+
+set "SDK.STINCLUDE.NAME=SysToolsLib global C include files"
+set "SDK.STINCLUDE.FILE=stversion.h"
 
 set "SDK.BIOSLIB.NAME=BIOS Library"
 set "SDK.BIOSLIB.FILE=clibdef.h"
@@ -2467,6 +2475,10 @@ if not defined OUTDIR (
 for %%v in (VC16) do if defined %%v (
   for %%k in (%SDK_LIST%) do if defined %%k (
     :# Do not configure BIOSLIB, LODOSLIB, PMODELIB variables at this stage, as they'll be needed for BIOS builds only
+    if "%%k"=="STINCLUDE" ( :# System Tools Library
+      SET _LIST_=;!%%v.INCPATH!;
+      if "!_LIST_:;%STINCLUDE%;=!"=="!_LIST_!" SET "%%v.INCPATH=!%%v.INCPATH!;%STINCLUDE%"
+    )
     if "%%k"=="SYSLIB" ( :# System library
       SET "%%v.INCPATH=!%%v.INCPATH!;%SYSLIB%"
       set "%%v.LIBPATH=!%%v.LIBPATH!;%SYSLIB%%\OUTDIR%\$(BR)"
@@ -2518,6 +2530,10 @@ for %%v in (VC16) do if defined %%v (
 :# Update x86 include and library paths for well-known libraries
 for %%v in (VC95 VC32) do if defined %%v (
   for %%k in (%SDK_LIST%) do if defined %%k (
+    if "%%k"=="STINCLUDE" ( :# System Tools Library
+      SET _LIST_=;!%%v.INCPATH!;
+      if "!_LIST_:;%STINCLUDE%;=!"=="!_LIST_!" SET "%%v.INCPATH=!%%v.INCPATH!;%STINCLUDE%"
+    )
     if "%%k"=="SYSLIB" ( :# System library
       SET "%%v.INCPATH=!%%v.INCPATH!;%SYSLIB%"
       set "%%v.LIBPATH=!%%v.LIBPATH!;%SYSLIB%%\OUTDIR%\$(BR)"
@@ -2562,6 +2578,10 @@ for %%v in (VC95 VC32) do if defined %%v (
 :# Update other processors include and library paths for well-known libraries
 for %%v in (VCIA64 VC64 VCARM VCARM64) do if defined %%v (
   for %%k in (%SDK_LIST%) do if defined %%k (
+    if "%%k"=="STINCLUDE" ( :# System Tools Library
+      SET _LIST_=;!%%v.INCPATH!;
+      if "!_LIST_:;%STINCLUDE%;=!"=="!_LIST_!" SET "%%v.INCPATH=!%%v.INCPATH!;%STINCLUDE%"
+    )
     if "%%k"=="SYSLIB" ( :# System library
       SET "%%v.INCPATH=!%%v.INCPATH!;%SYSLIB%"
       set "%%v.LIBPATH=!%%v.LIBPATH!;%SYSLIB%%\OUTDIR%\$(BR)"
