@@ -120,7 +120,10 @@
 #    2018-03-02 JFL Added variable SKIP_THIS, to prevent building specific    #
 #		    versions.						      #
 #    2022-11-25 JFL Catch up on numerous changes and bug fixes.               #
-#    2022-12-03 JFL Removed all inference rules, and use DOS.MAK's instead.  #
+#    2022-12-03 JFL Removed all inference rules, and use DOS.MAK's instead.   #
+#    2024-07-21 JFL Workaround for the NMINCLUDE/STINCLUDE split support.     #
+#		    TODO instead: configure.bat should define BIOS variables, #
+#		    like for the other OSs. Ex: BIOS_INCPATH, BIOS_LIBPATH.   #
 #		    							      #
 #      © Copyright 2016-2018 Hewlett Packard Enterprise Development LP        #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
@@ -158,6 +161,9 @@ LFLAGSX=/nod			# Extra linker flags
 INCPATH=$(BIOSLIB)
 LIBPATH=$(BIOSLIB)\$(OUTDIR)
 LIBS=bios.lib
+!IF DEFINED(STINCLUDE)
+INCPATH=$(INCPATH);$(STINCLUDE)
+!ENDIF
 !IF DEFINED(LODOSLIB) && 1 # We should not use this one when generating BIOS apps!
 INCPATH=$(INCPATH);$(LODOSLIB)
 LIBPATH=$(LIBPATH);$(LODOSLIB)\$(OUTDIR)
