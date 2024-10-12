@@ -2,13 +2,14 @@ NMaker - A Multi OS make system based on nmake
 ==============================================
 
 A command-line make system, allowing to build multiple versions of a program, for DOS, Windows, and Unix,
-from a single set of C/C++ sources.
+from a single set of C/C++ sources, using Microsoft tools for the DOS and Windows parts.
 It is very useful on a PC with multiple VMs with Windows and Unix, each having access to common sources on the host.
 
 The [include](include/) subdirectory contains include files extending the Microsoft nmake.exe system, and giving it a Unix make feel.  
 It was initially developped for building the [System Tools Library](https://github.com/JFLarvoire/SysToolsLib) C tools.  
 Then, as it proved useful for building other projects, it was split off of the System Tools Library, into its own repository.
 NMaker can now be used as a git sub-module for the System Tools Library, or any other multi-OS project.
+
 Home page: [NMaker](https://github.com/JFLarvoire/NMaker)
 
 File names      | Descrition
@@ -23,7 +24,7 @@ The project name _NMaker_ is a nostalgic allusion to the old nmaker.exe program,
 
 * Easily build multiple versions of the same program, for various operating system and processor combinations.
 * Build in parallel from common sources. No need to copy sources all around.
-* Build universal executables that work in *all* Microsoft operating systems, from DOS to Windows 95 to Windows 10.
+* Build universal executables that work in *all* Microsoft operating systems, from DOS 5 to Windows 95 to Windows 10.
 * Define recursive projects with a few simple make files describing _what_ to build, not how.
 * Configure and make scripts for Visual C++ nmake.exe, with a look and feel similar to Unix standards.
 * Supports Visual C++ 8 (For building in Windows 10 for DOS and Windows 95) to Visual C++ 16 (For Windows 7 and later).
@@ -32,6 +33,49 @@ The project name _NMaker_ is a nostalgic allusion to the old nmaker.exe program,
 
 [The Apache 2 license](https://www.apache.org/licenses/LICENSE-2.0)  
 (Compatible with most other project licenses; Does not "contaminate" them!)
+
+
+Requirements and options
+------------------------
+
+All NMaker system scripts are batch scripts designed to run in the cmd.exe shell of modern Windows systems.
+They used to work in Windows XP, and may still do, but this has not been tested for a long time.
+They're likely to work in Windows 7, but again this is rarely tested.
+It's recommended to do builds in Windows 10 or 11.
+
+1. Required: A recent version of Microsoft Visual C++. 
+   This allows building things in your version of Windows, for your version of Windows.
+   But even when building for DOS or Windows 95 with the optional tools below, some tools from a recent VC++ are required.
+   If needed, it's part of the free Visual Studio Community Edition, available from this URL:  
+   https://www.visualstudio.com/downloads/  
+   Important: While installing Visual Studio Community Edition, make sure to select the following optional components:
+
+    - The workload "Desktop Development with C++"
+    - Options "C++/CLI support" and "Standard Library modules" (In the list at the right of the installation wizard)
+
+2. Optional. If you're interested in building programs for Windows 95/98, install Microsoft Visual Studio 2005.  
+   It is still available for MSDN subscribers in 2017.  
+   A free version with some limitations is also available in archive.org: [MS Visual Studio 2005 Express](https://archive.org/details/mvs-2005-ee)
+   It can be installed in parallel with more recent versions of Visual Studio.
+
+3. Optional. If you're interested in building programs for the PC BIOS, MS-DOS, and Windows 3.x, install Microsoft Visual C++ 1.52c.  
+   It is still available for MSDN subscribers in 2017, as part of the Visual Studio 2005 DVD image, but not installed by default.
+   It's also available in archive.org: [MS VC++ 1.52x](https://archive.org/details/Microsoft_Visual_C_-_Version_1.52c_Microsoft_1995)
+   Gotcha: The VC++ 1.52 compiler is a WIN32 program that runs in all 32 and 64-bits versions of Windows. But
+   unfortunately the VC++ 1.52 setup.exe program is a WIN16 program, which only runs on old 32-bits versions of Windows.
+   This requires doing extra steps for successfully installing the compiler in modern 64-bits versions of Windows:
+
+   - Install a 32-bits VM running Windows XP, that can run WIN16 programs out-of-the-box. (This has to be an x86 VM, not an amd64 VM with XP/64)  
+     Note: Newer 32-bits x86 versions of Windows can still run WIN16 programs, but this may require some tinkering.
+     If needed, look for instructions on the Internet.
+   - Give that VM access to the host's file system, and to the VC++ 1.52 master DVD image as a virtual CD.
+   - Run the VC++ 1.52 setup in the VM, and install it in the VM's C:\MSVC. (Necessary so that the setup builds vcvars.bat correctly.)
+   - Once this is done, copy the VM's C:\MSVC to the host's C:\MSVC.  
+     The copy of C:\MSVC\BIN\MSVCVARS.BAT on the host will thus refer to the host's C drive, as if the setup had been done on the host.
+
+After installing or upgrading any of the tools above, run configure.bat in your project base directory.  
+This will update the config.HOSTNAME.bat file in each library directory.  
+Subsequent builds with make.bat will automatically use the new tools and SDKs, and build the programs that depend on them.
 
 
 The Microsoft Visual C++ nmake system
@@ -91,7 +135,7 @@ PC BIOS           | bin\BIOS\
 MS-DOS drivers    | bin\LODOS\
 MS-DOS            | bin\DOS\
 Windows 3.x to ME | bin\WIN16\
-Windows 95        | bin\WIN95\
+Windows 95 WIN32S | bin\WIN95\
 Windows XP+ x86   | bin\WIN32\
 Windows x86_64    | bin\WIN64\
 Windows arm       | bin\ARM\
@@ -155,10 +199,10 @@ For that, developers should create in their source directory one or more of thes
 |                 | LIBRARIES = Libraries to link with the program. Rarely needed, as this list is usually built automatically.  
 |                 | Files.mak is required in most projects, and is sufficient in most simple cases.
 | makefile        | GNU make file, with gmake-specific rules for building the project in Unix.
-| NMakefile       | MS nmake file, with nmake-specific rules for building the project in Windows, for DOS & Windows.
+| NMakefile       | MS nmake file, with nmake-specific rules for building the project in Windows, for DOS & Windows targets.
 
 Note that `configure.bat` will also use the DIRS definitions in `Files.mak`, to automatically run recursively in the
-subproject directories. So if all `Files.mak` files are configured correctly, `configure.bat` needs only to be run once
+subproject directories. So if all `Files.mak` files are setup properly, `configure.bat` needs only to be run once
 in the project top directory.
 
 ### Importing NMaker files
