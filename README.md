@@ -28,6 +28,8 @@ The project name _NMaker_ is a nostalgic allusion to the old nmaker.exe program,
 * Define recursive projects with a few simple make files describing _what_ to build, not how.
 * Configure and make scripts for Visual C++ nmake.exe, with a look and feel similar to Unix standards.
 * Supports Visual C++ 8 (For building in Windows 10 for DOS and Windows 95) to Visual C++ 16 (For Windows 7 and later).
+* Builds by default the release version for the current OS.
+
 
 ### License
 
@@ -221,7 +223,54 @@ Import NMaker files in your project this way:
  - Commit the .gitmodules file and the NMaker directory into the git repository.
 
 Later on, if desired, it's possible to get the NMaker updates by running `git submodule update --remote`.
-   
+
+### make.bat usage
+
+Run `make help` for details. Sample output:
+
+    Usage: make.bat [options] [nmake_options] [macro_definitions] [targets] ...
+    
+    Macro definitions:     (They must be quoted, else the = sign will be lost)
+      "DEBUG=0"            Generate the release version. (Default)
+      "DEBUG=1"            Generate the debug version. <==> Target in a Debug\ dir.
+      "DEBUG=all"          Generate both the debug and release versions.
+      "DEBUG=0 1"          Generate both the debug and release versions.
+      "MEM=L"              Build the DOS version w. large memory model. Dflt: T or S
+      "OS=this"            Build for the current OS. (Default)
+      "OS=all"             Build all buildable OS versions
+      "OS=tests"           Build OS versions for testing, both debug and release
+      "OS=BIOS DOS WIN95 WIN32 WIN64"   List of target OSs to build for
+      "WINVER=4.0"         Target OS version. 4.0=Win95/NT4, 5.1=WinXP, 6.1=Win7
+    
+    Targets:
+      all                    Build all available programs and libraries
+      clean                  Erase all output files built by this make system
+      allclean               Erase all output files for all OSs, including Unix'
+      distclean              Erase all output files and all configuration files
+      {prog}.com             Build BIOS and DOS versions of {prog}.com
+      {prog}.exe             Build DOS and all Windows versions of {prog}.exe
+      Debug\{prog}.exe       Build BIOS and DOS versions of the same
+      {prog}.exe             Build DOS, WIN32, and WIN64 versions of {prog}.exe
+      Debug\{prog}.exe       Build DOS, WIN32, and WIN64 debug versions of the same
+      BIOS\{prog}.com        Build the BIOS release version of {prog}.com
+      BIOS\Debug\{prog}.com  Build the BIOS debug version of {prog}.com
+      LODOS\{prog}.com       Build the low DOS release version of {prog}.com
+      LODOS\Debug\{prog}.com Build the low DOS debug version of {prog}.com
+      LODOS\{prog}.exe       Build the low DOS release version of {prog}.exe
+      LODOS\Debug\{prog}.exe Build the low DOS debug version of {prog}.exe
+      LODOS\{prog}.sys       Build the low DOS release version of {prog}.sys
+      LODOS\Debug\{prog}.sys Build the low DOS debug version of {prog}.sys
+      DOS\{prog}.com         Build the DOS release version of {prog}.com
+      DOS\Debug\{prog}.com   Build the DOS debug version of {prog}.com
+      DOS\{prog}.exe         Build the DOS release version of {prog}.exe
+      DOS\Debug\{prog}.exe   Build the DOS debug version of {prog}.exe
+      WIN95\{prog}.exe       Build the WIN95 release version of {prog}.exe
+      WIN95\Debug\{prog}.exe Build the WIN95 debug version of {prog}.exe
+      WIN32\{prog}.exe       Build the WIN32 release version of {prog}.exe
+      WIN32\Debug\{prog}.exe Build the WIN32 debug version of {prog}.exe
+      WIN64\{prog}.exe       Build the WIN64 release version of {prog}.exe
+      WIN64\Debug\{prog}.exe Build the WIN64 debug version of {prog}.exe
+
 
 ### Examples
 

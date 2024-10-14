@@ -211,6 +211,7 @@
 :#   2023-01-16 JFL Added %THIS_SDK% and THIS_SDK_LIST to put in config.h.    *
 :#   2023-12-06 JFL Fixed the -vsn and -vsp options.                          *
 :#   2023-12-10 JFL Locate the msdos.exe tool, necessary to build WIN16 apps. *
+:#   2024-01-02 JFL Added the THIS_OS variable definition.                    *
 :#   2024-01-08 JFL Avoid an error popup when checking MSVC 1.5 rc.exe.       *
 :#                  Added support for the new STINCLUDE variable.             *
 :#                                                                            *
@@ -2218,6 +2219,10 @@ if exist %CONFIG.BAT% del %CONFIG.BAT%
 %CONFIG% :# Invoke configure.bat manually if anything changes in the tools config, such as
 %CONFIG% :# installing a Visual Studio update, or updating a configure.XXX.bat script.
 
+:# Clear directory-specific variables that must be clear by default
+%CONFIG%.
+%CONFIG% SET "LINK_OUTDIR=" ^&:# By default, do not link it to the parent directory
+
 :# If this is a recursive all, no need to regenerate variables and rescan the system for compilers, etc.
 if defined ADD_POST_CONFIG_ACTION goto :Configure_init_done
 
@@ -2242,6 +2247,13 @@ if "%PF32%"=="%PF64%" (
 :# Identify the native PROCESSOR_ARCHITECTURE
 :# Gotcha: When invoked recursively by nmake, both %PROCESSOR_ARCHITECTURE% is reset to x86.
 if not defined ARCH set "ARCH=%PROCESSOR_ARCHITECTURE%"
+set "OS[x86]=WIN32"
+set "OS[EM64T]=WIN64"
+set "OS[AMD64]=WIN64"
+set "OS[IA64]=IA64"
+set "OS[ARM]=ARM"
+set "OS[ARM64]=ARM64"
+if not defined THIS_OS set "THIS_OS=!OS[%ARCH%]!"
 
 :# Find Microsoft development tools directories
 echo OS	Tool	Proc	Path
@@ -2698,6 +2710,7 @@ for %%c in ("%CONFIG.BAT%") do %ECHO.V% :# Writing %%~fc
 %CONFIG% SET "PF32=%PF32%" ^&:# 32-bits Program Files
 %CONFIG% SET "PF64=%PF64%" ^&:# 64-bits Program Files
 %CONFIG% SET "ARCH=%ARCH%" ^&:# PROCESSOR_ARCHITECTURE
+%CONFIG% SET "THIS_OS=%THIS_OS%" ^&:# OS name for NMaker. Ex: WIN64 or ARM64
 %CONFIG%.
 %CONFIG% SET "MASM=%MASM%" ^&:# Microsoft 16-bits Assembler base path
 %CONFIG% SET "MSVC=%MSVC%" ^&:# Microsoft 16-bits Visual C++ base path
@@ -2799,6 +2812,7 @@ if not %CON.CP%==%WIN.CP% chcp %WIN.CP% >nul 2>nul &:# Make sure the full name i
 %CONFIG% if not %%CON_CP%%==%%WIN_CP%% chcp %%CON_CP%% ^>nul 2^>nul
 if not %CON.CP%==%WIN.CP% chcp %CON.CP% >nul 2>nul
 
+:# Write post-make actions, if any
 if defined POST_MAKE_ACTIONS (
   %CONFIG%.
   %CONFIG% :# List of commands to run when make.bat exits
