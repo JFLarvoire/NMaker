@@ -153,6 +153,7 @@
 #    2024-01-01 JFL Display the message "Updating localized C sources" only   #
 #		    if some sources changed.				      #
 #    2024-01-08 JFL Fixed bugs in the $(CONV_SOURCES) batch script.           #
+#    2024-10-14 JFL Consistent generation of DOS & WIN32 config.h files.      #
 #		    							      #
 #      © Copyright 2016-2018 Hewlett Packard Enterprise Development LP        #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
@@ -365,7 +366,7 @@ AFLAGS=$(AFLAGS) $(HAS_SDK_FLAGS)
 # Even though the Windows versions don't need it, unlike the DOS or Unix versions,
 # for the C sources that _do_ include <config.h>, provide access to a dummy one.
 CFLAGS=$(CFLAGS) /I$(I)		# Make sure the compiler finds the config.h file we generate
-CONFIG_H=$(I)\config.h
+CONFIG_H=$(I)\config.h		# Contains system-specific constants definitions 
 CONFIG_I=$(I)\config.i		# Contains #include <config.h>
 
 # Forward user information from configure.bat to the C and RC compilers
@@ -878,9 +879,10 @@ $(L)\dirs.done:
     echo %DATE% %TIME% >$@ &:# Proof that all dirs were created
 
 files: $(X) $(UTF8_BOM_FILE) $(REMOVE_UTF8_BOM) \
-       $(CONV_SCRIPT) $(CONV_SOURCES)
+       $(CONV_SCRIPT) $(CONV_SOURCES) $(CONFIG_H)
 !ELSE
 dirs files: skip_this
+    echo>con SKIPPED
     @rem This rem prevents inference rules from firing. Do not remove.
 !ENDIF
 
@@ -900,9 +902,12 @@ $(UTF8_BOM_FILE): "$(THIS_MAKEFILE)"
 <<NOKEEP
 
 $(CONFIG_H): $(I) "$(THIS_MAKEFILE)" config.$(COMPUTERNAME).bat
-    rem $(MSG) Generating include file $@
-    rem (for %%v in ($(HAS_SDK_LIST)) do @echo #define %%v 1) >$(CONFIG_H)
-    echo>$(CONFIG_H) /* Dummy config.h for the C sources that do include one */
+    $(MSG) Generating include file $@
+    copy <<$@ NUL
+/* OS & Compiler-specific definitions, usually created by ./configure Unix scripts */
+#define UNUSED_ARG(arg_name) (void)arg_name /* Avoid an unused argument warning. No code generated. */
+<<KEEP
+    (for %%v in ($(HAS_SDK_LIST)) do @echo #define %%v 1) >>$@
     echo>$(CONFIG_I) #include ^<config.h^>
 
 $(REMOVE_UTF8_BOM): "$(THIS_MAKEFILE)"

@@ -173,6 +173,7 @@
 #    2023-12-11 JFL Fixed the final copying of .com programs to bin\DOS.      #
 #		    Added specific rules for linking WIN16 executables.       #
 #    2024-01-08 JFL Fixed bugs in the $(CONV_SOURCES) batch script.           #
+#    2024-10-14 JFL Consistent generation of DOS & WIN32 config.h files.      #
 #		    							      #
 #      © Copyright 2016-2018 Hewlett Packard Enterprise Development LP        #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
@@ -1362,7 +1363,10 @@ $(X):
     if not exist $(X) mkdir $(X)
 
 !IF !DEFINED(SKIP_THIS)
-dirs: $(B) $(O) $(I) $(L) $(S2) files convert_C_sources
+dirs: $(B) $(O) $(I) $(L) $(S2) files convert_C_sources $(L)\dirs.done
+
+$(L)\dirs.done:
+    echo %DATE% %TIME% >$@ &:# Proof that all dirs were created
 
 files: $(X) $(UTF8_BOM_FILE) $(REMOVE_UTF8_BOM) \
        $(CONV_SCRIPT) $(CONV_SOURCES) $(COMPACT_PATHS) $(CONFIG_H)
@@ -1388,7 +1392,11 @@ $(UTF8_BOM_FILE): "$(THIS_MAKEFILE)"
 
 $(CONFIG_H): $(I) "$(THIS_MAKEFILE)" config.$(COMPUTERNAME).bat
     $(MSG) Generating include file $@
-    (for %%v in ($(HAS_SDK_LIST)) do @echo #define %%v 1) >$(CONFIG_H)
+    copy <<$@ NUL
+/* OS & Compiler-specific definitions, usually created by ./configure Unix scripts */
+#define UNUSED_ARG(arg_name) do {break;} while (arg_name) /* Avoid an unused argument warning. No code generated. */
+<<KEEP
+    (for %%v in ($(HAS_SDK_LIST)) do @echo #define %%v 1) >>$@
     echo #include ^<config.h^>>$(CONFIG_I)
 
 $(REMOVE_UTF8_BOM): "$(THIS_MAKEFILE)" # Convert source to DOS encoding _and_ prepend config.h if needed
