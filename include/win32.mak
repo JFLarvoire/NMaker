@@ -154,6 +154,7 @@
 #		    if some sources changed.				      #
 #    2024-01-08 JFL Fixed bugs in the $(CONV_SOURCES) batch script.           #
 #    2024-10-14 JFL Consistent generation of DOS & WIN32 config.h files.      #
+#    2024-10-19 JFL Fixed a bug in RemBOM.bat which caused a hang in W7VM.    #
 #		    							      #
 #      © Copyright 2016-2018 Hewlett Packard Enterprise Development LP        #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
@@ -946,7 +947,9 @@ $(REMOVE_UTF8_BOM): "$(THIS_MAKEFILE)"
 	endlocal & exit /b 0
 	:main
 	:# Main action: Remove the UTF-8 BOM, if present in the C source
-	findstr /B /G:$(UTF8_BOM_FILE) <"%~1" >NUL
+	:# Some old versions of findstr.exe hang if the data is input from stdin,
+	:# and if the last line does not end with a LF. So use "%~1", not <"%~1".
+	findstr /B /G:$(UTF8_BOM_FILE) "%~1" >NUL
 	if errorlevel 1 (
 	  echo No UTF-8 BOM in "%~1". Copying the file.
 	  copy /y "%~1" "%~2"
@@ -959,7 +962,9 @@ $(REMOVE_UTF8_BOM): "$(THIS_MAKEFILE)"
 	set "PROGRAM.ver=%~dpn2.ver.h"
 	echo Generating !PROGRAM.ver!
 	:# Extract the PROGRAM_* definitions from the C source
-	findstr /C:"#define PROGRAM_" < "%~1" > "!PROGRAM.ver!" 2>NUL &:# Don't use /B to allow flagging other lines to copy with a /* #define PROGRAM_ */ comment
+	:# Some old versions of findstr.exe hang if the data is input from stdin,
+	:# and if the last line does not end with a LF. So use "%~1", not <"%~1".
+	findstr /C:"#define PROGRAM_" "%~1" > "!PROGRAM.ver!" 2>NUL &:# Don't use /B to allow flagging other lines to copy with a /* #define PROGRAM_ */ comment
 	:# Then split the program version into its MAJOR.MINOR.PATH.BUILD components
 	set "PROGRAM_VERSION="
 	for %%v in (PROGRAM_VERSION PROGRAM_DATE) do if not defined PROGRAM_VERSION ( :# Fall back to using PROGRAM_DATE if there's no PROGRAM_VERSION

@@ -174,6 +174,7 @@
 #		    Added specific rules for linking WIN16 executables.       #
 #    2024-01-08 JFL Fixed bugs in the $(CONV_SOURCES) batch script.           #
 #    2024-10-14 JFL Consistent generation of DOS & WIN32 config.h files.      #
+#    2024-10-19 JFL Fixed a bug in RemBOM.bat which caused a hang in W7VM.    #
 #		    							      #
 #      © Copyright 2016-2018 Hewlett Packard Enterprise Development LP        #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
@@ -1409,7 +1410,9 @@ $(REMOVE_UTF8_BOM): "$(THIS_MAKEFILE)" # Convert source to DOS encoding _and_ pr
 	if errorlevel 1 ( :# If <config.h> is not already in the source file
 	  for %%e in (c cpp r) do if not defined NEED_H if "%~x1"==".%%e" set "NEED_H=1"
 	)
-	findstr /B /G:$(UTF8_BOM_FILE) <"%~1" >NUL
+	:# Some old versions of findstr.exe hang if the data is input from stdin,
+	:# and if the last line does not end with a LF. So use "%~1", not <"%~1".
+	findstr /B /G:$(UTF8_BOM_FILE) "%~1" >NUL
 	if errorlevel 1 (
 	  echo No UTF-8 BOM in "%~1". Copying the file.
 	  if defined NEED_H (
