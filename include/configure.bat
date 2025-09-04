@@ -214,13 +214,15 @@
 :#   2024-01-02 JFL Added the THIS_OS variable definition.                    *
 :#   2024-01-08 JFL Avoid an error popup when checking MSVC 1.5 rc.exe.       *
 :#                  Added support for the new STINCLUDE variable.             *
+:#   2025-08-29 JFL Added option -lvs to list available Visual Studio versions.
+:#   2025-09-04 JFL Added options -lvc & -lsdk, and an opt. target processor. *
 :#                                                                            *
 :#      © Copyright 2016-2020 Hewlett Packard Enterprise Development LP       *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2023-12-10"
+set "VERSION=2025-09-04"
 set "SCRIPT=%~nx0"				&:# Script name
 set "SPATH=%~dp0" & set "SPATH=!SPATH:~0,-1!"	&:# Script path, without the trailing \
 set  "ARG0=%~f0"				&:# Script full pathname
@@ -1735,20 +1737,22 @@ if exist "%~3" for %%c in (%~4) do (    :# VC subdirectories
   %ECHO.D% :# Searching VC in "%~3\%%~c"
   if exist "%~3\%%~c" (
     set "VCDIRS="
-    :# Infos from https://github.com/Microsoft/vswhere/wiki/Find-VC
-    if exist "%~3\%%~c\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt" (
-      %ECHO.D% :# Reading version in "%~3\%%~c\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt"
-      set /p VCVER=<"%~3\%%~c\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt"
-      set "VCDIRS=%~3\%%~c\Tools\MSVC\!VCVER: =!"
-    )
-    if not defined VCDIRS if exist "%~3\%%~c\Auxiliary\Build\Microsoft.VCRedistVersion.default.txt" (
-      :# Preview versions have a Microsoft.VCToolsVersion.v142.default.txt, that's not detected above.
-      :# Try using the Microsoft.VCRedistVersion.default.txt, which seems to contain the same version.
-      %ECHO.D% :# Reading version in "%~3\%%~c\Auxiliary\Build\Microsoft.VCRedistVersion.default.txt"
-      set /p VCVER=<"%~3\%%~c\Auxiliary\Build\Microsoft.VCRedistVersion.default.txt"
-      set "VCDIRS=%~3\%%~c\Tools\MSVC\!VCVER: =!"
-      if not exist "!VCDIRS!\%BINDIRS%\cl.exe" set "VCDIRS="
-      set "VCVER="
+    if not defined CBLISTALLVC ( :# In all cases, except when enumerating all installed VC versions
+      :# Infos from https://github.com/Microsoft/vswhere/wiki/Find-VC
+      if exist "%~3\%%~c\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt" (
+	%ECHO.D% :# Reading version in "%~3\%%~c\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt"
+	set /p VCVER=<"%~3\%%~c\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt"
+	set "VCDIRS=%~3\%%~c\Tools\MSVC\!VCVER: =!"
+      )
+      if not defined VCDIRS if exist "%~3\%%~c\Auxiliary\Build\Microsoft.VCRedistVersion.default.txt" (
+	:# Preview versions have a Microsoft.VCToolsVersion.v142.default.txt, that's not detected above.
+	:# Try using the Microsoft.VCRedistVersion.default.txt, which seems to contain the same version.
+	%ECHO.D% :# Reading version in "%~3\%%~c\Auxiliary\Build\Microsoft.VCRedistVersion.default.txt"
+	set /p VCVER=<"%~3\%%~c\Auxiliary\Build\Microsoft.VCRedistVersion.default.txt"
+	set "VCDIRS=%~3\%%~c\Tools\MSVC\!VCVER: =!"
+	if not exist "!VCDIRS!\%BINDIRS%\cl.exe" set "VCDIRS="
+	set "VCVER="
+      )
     )
     if not defined VCDIRS if exist "%~3\%%~c\Common7\Tools\vsdevcmd.bat" (
       setlocal
@@ -1773,7 +1777,11 @@ if exist "%~3" for %%c in (%~4) do (    :# VC subdirectories
 	  set "%VC%.CC="%%~s\%%b\cl.exe""
 	  %ECHOVARS.D% %VS% %VC% %VC%.BIN %VC%.CC
 	  set "VCDIRS="
-	  exit /b 0
+	  if not defined CBLISTALLVC ( :# Done, except if listing all
+	    exit /b 0
+	  ) else (
+	    call %CBLISTALLVC% &rem :# Report this instance & keep searching
+	  )
 	)
       )
     )
@@ -1840,21 +1848,42 @@ for %%b in (Bin Bin\WinNT WinNT) do ( :# *WinNT = Names for old VS versions with
 
 %RETURN#% "%VS%=!%VS%!"
 
+:# List all Visual Studio instances installed
+:listAllVS
+%FUNCTION0%
+set "VS=VSX"
+set "VC=VCX"
+call :findvs.init
+set "PROC=!PROC[%~1]!" & if not defined PROC set "PROC=x86"
+set "SEARCH_IN=call :listVsIn %PROC%"
+%ECHO.V% # Visual Studio instances for the %PROC%
+%ECHO.V% Version		Pathname
+goto :lastvs
+
+:listVsIn
+call :FindVsIn %*
+if errorlevel 0 (
+  if defined VSX echo VS %2	!VSX!
+)
+exit /b 1 &:# Simulate failure to find it, so that search continues for older versions
+
 :#-----------------------------------------------------------------------------
 :# Find the Windows SDK
 :# Early SDKs were called PlatformSDK, and included in Visual Studio.
 :# Then they were called Windows SDKs, and optionally included libraries for multiple platforms=processors
 :# Then they were called Windows Kits, with a different tree structure.
-:findsdk 
+:findsdk [-min VERSION] [-max VERSION] [-platform PLATFORM] [-action Find|List]
 %FUNCTION0%
 SET WINSDK=
 set "WINSDKMIN=NONE"
 set "WINSDKMAX="
 set "WINSDKPROC=x86"
+set "WINSDKACT=Find"
 set ARGS=%*
 :next_winsdk_arg
 %POPARG%
 if not defined ARG goto :done_sdk_arg
+if /i "!ARG!"=="-action" %POPARG% & set "WINSDKACT=!ARG!" & goto :next_winsdk_arg
 if /i "!ARG!"=="-min" %POPARG% & set "WINSDKMIN=!ARG!" & goto :next_winsdk_arg
 if /i "!ARG!"=="-max" %POPARG% & set "WINSDKMAX=!ARG!" & goto :next_winsdk_arg
 if /i "!ARG!"=="-platform" %POPARG% & set "WINSDKPROC=!ARG!" & goto :next_winsdk_arg
@@ -1863,7 +1892,7 @@ if /i "!ARG!"=="-platform" %POPARG% & set "WINSDKPROC=!ARG!" & goto :next_winsdk
 for %%k in (10 8.1 8.0) do (
   if defined WINSDKMAX if %%k==!WINSDKMAX! set "WINSDKMAX="
   if not defined WINSDKMAX if defined WINSDKMIN for %%p in (%PF64AND32%) do (
-    if not defined WINSDK if exist "%%~p\Windows Kits\%%k" call :FindWkIn "%%~p\Windows Kits\%%k"
+    if not defined WINSDK if exist "%%~p\Windows Kits\%%k" call :%WINSDKACT%WkIn "%%~p\Windows Kits\%%k"
   )
   if defined WINSDKMIN if %%k==!WINSDKMIN! set "WINSDKMIN="
 )
@@ -1871,16 +1900,16 @@ for %%k in (10 8.1 8.0) do (
 if not defined WINSDK for %%k in (v8.1A v8.1 v8.0A v8.0 v7.1A v7.1 v7.0A v7.0 v6.1 v6.0A v6.0 v5.2 v5.1 v5.0) do (
   if defined WINSDKMAX if %%k==!WINSDKMAX! set "WINSDKMAX="
   if not defined WINSDKMAX if defined WINSDKMIN for %%p in (%PF64AND32%) do (
-    if not defined WINSDK call :FindSdkIn "%%~p\Microsoft SDKs\Windows\%%k"
+    if not defined WINSDK call :%WINSDKACT%SdkIn "%%~p\Microsoft SDKs\Windows\%%k"
   )
   if defined WINSDKMIN if %%k==!WINSDKMIN! set "WINSDKMIN="
 )
 :# Search even older SDKs
 if not defined WINSDK (
-  call :FindSdkIn "%PF32%\Microsoft SDK" &rem :# Location for the 2001-08 SDK (Notice it's SDK without an s)
+  call :%WINSDKACT%SdkIn "%PF32%\Microsoft SDK" &rem :# Location for the 2001-08 SDK (Notice it's SDK without an s)
 )
 if not defined WINSDK (
-  call :FindSdkIn "!%VC%!\PlatformSDK" &rem :# Else try using the oldest ones, coming with Visual Studio
+  call :%WINSDKACT%SdkIn "!%VC%!\PlatformSDK" &rem :# Else try using the oldest ones, coming with Visual Studio
 )
 if not defined WINSDK (
   %ECHO.D% :# Not Found
@@ -1955,6 +1984,39 @@ if defined WINSDK_LIB for %%l in ("%WINSDK_LIB%") do (
 )
 goto :eof
 
+:ListAllSDK
+%FUNCTION0%
+set "PROC=%~1" & if not defined PROC set "PROC=x86"
+if "!PROC!"=="amd64" set "PROC=x64" &:# In SDK-speak, the amd64 is an x64
+%ECHO.V% # Windows SDKs for the %PROC%
+%ECHO.V% Version		Pathname
+set "WINSDK="
+set "FINDOPTS=-action List"
+set "FINDOPTS=!FINDOPTS! -platform %PROC%"
+call :findsdk !FINDOPTS!
+%RETURN% 0
+
+:ListSdkIn
+call :FindSdkIn %*
+if defined WINSDK (
+  for /d %%l in ("!WINSDK!") do (
+    set "VER=%%~nxl"
+    set "VER=!VER:~1!"
+    echo !VER!		%%~l
+  )
+  set "WINSDK="
+)
+exit /b 0
+
+:ListWkIn
+call :FindWkIn %*
+if defined WINSDK (
+  rem echo !WINSDK_VER!	!WINSDK!
+  for /d %%l in ("%~1\Lib" "%~1\Lib\*") do if exist "%%~l\um\!WINSDKPROC!\kernel32.lib" echo %%~nxl	%%~l
+  set "WINSDK="
+)
+exit /b 0
+
 :#-----------------------------------------------------------------------------
 :# Find 32 or 64-bits Microsoft Visual C++
 
@@ -1979,6 +2041,30 @@ set "VS=VS95"
 set "VC=VC95"
 call :findvs95 WIN95 %PROC% %VS% %VC%
 goto :findvc32.common
+
+:# List all Visual C++ instances installed
+:listAllVC
+%FUNCTION0%
+set "VS=VSX"
+set "VC=VCX"
+call :findvs.init
+set "PROC=!PROC[%~1]!" & if not defined PROC set "PROC=x86"
+%ECHO.V% # Visual C++ compilers for the %PROC%
+%ECHO.V% Version		Pathname
+set "CBLISTALLVC=:listVcCB"
+set "SEARCH_IN=call :listVcIn %PROC%"
+goto :lastvs
+
+:listVcIn
+set "VSALIAS=%2"
+call :FindVsIn %*
+exit /b 1 &:# Simulate failure to find it, so that search continues for older versions
+
+:listVcCB
+:# Old compilers (Ex: VC8) have two versions in the same instance. List only one.
+if not "!VCX!"=="!LASTVCX!" echo VC %VSALIAS%	!VCX!
+set "LASTVCX=!VCX!"
+exit /b
 
 :#-----------------------------------------------------------------------------
 :# Find Microsoft 32 or 64-bits development tools
@@ -2155,6 +2241,9 @@ echo   -d            Debug mode. Display internal variables and function calls
 echo   -E            Ignore environment variable NMINCLUDE, and redefine it
 echo   -l LOGFILE    Log output into a file. Default: Don't
 echo   -L            Disable logging. Default: Use the parent script log file, if any
+echo   -lvc [PROC]   List all Visual C/C++ compilers installed (default PROC: x86)
+echo   -lvs [PROC]   List all Visual Studio instances installed ("")
+echo   -lsdk [PROC]  List all Windows SDKs installed            ("")
 echo   -masm PATH    Path to MASM install dir, or - to disable. Default: C:\MASM
 echo   -msvc PATH    Path to MSVC 16-bits tools install dir, or -. Default: C:\MSVC
 echo   -nodos        Same as -masm - -msvc -
@@ -2180,6 +2269,7 @@ set "VSTUDIO="
 set "VSPATH="
 set "VSNAME="
 set "RECURSE=1"
+set "TASK=configure" &:# The main purpose of this script
 
 :next_arg
 %POPARG%
@@ -2192,6 +2282,9 @@ if "!ARG!"=="-E" set "NMINCLUDE=" & goto next_arg
 if "!ARG!"=="-h" goto help
 if "!ARG!"=="-l" %POPARG% & call :Debug.SetLog !"ARG"! & goto next_arg
 if "!ARG!"=="-L" call :Debug.SetLog & goto next_arg
+if "!ARG!"=="-lvc" set "TASK=listAllVC" & goto next_arg
+if "!ARG!"=="-lvs" set "TASK=listAllVS" & goto next_arg
+if "!ARG!"=="-lsdk" set "TASK=listAllSDK" & goto next_arg
 if "!ARG!"=="-masm" %POPARG% & set "MASM=!ARG!" & goto next_arg
 if "!ARG!"=="-msvc" %POPARG% & set "MSVC=!ARG!" & goto next_arg
 if "!ARG!"=="-nodos" set "MASM=-" & set "MSVC=-" & goto next_arg
@@ -2203,26 +2296,15 @@ if "!ARG!"=="-v" call :Verbose.On & goto next_arg
 if "!ARG!"=="-vsp" %POPARG% & set "VSPATH=!ARG!" & goto next_arg
 if "!ARG!"=="-vsn" %POPARG% & set "VSNAME=!ARG!" & goto next_arg
 if "!ARG!"=="-V" (echo %VERSION%) & goto :eof
->&2 echo Unexpected argument ignored: !"ARG"!
+if "!ARG:~0,1!"=="-" (
+  >&2 %ECHO% Warning: Unexpected option ignored: !ARG!
+  goto :next_arg
+)
+if "!TASK:~0,7!"=="listAll" set "TASK=!TASK! !ARG!" & goto next_arg
+>&2 %ECHO% Warning: Unexpected argument ignored: !"ARG"!
 goto next_arg
 
 :go
-:# Delete %CONFIG.BAT% before rebuilding it
-if exist %CONFIG.BAT% del %CONFIG.BAT%
-%CONFIG% :# %CONFIG.BAT% generated by %SCRIPT% on %DATE% %TIME%
-%CONFIG% :#
-%CONFIG% :# If changes are needeed, do not edit this file, but instead create a new script
-%CONFIG% :# called configure.YOURCHOICE.bat. This new script will be invoked automatically
-%CONFIG% :# by configure.bat while creating this file. Then your script can write extra
-%CONFIG% :# definitions, or change some of the variables before configure.bat writes them.
-%CONFIG% :#
-%CONFIG% :# Invoke configure.bat manually if anything changes in the tools config, such as
-%CONFIG% :# installing a Visual Studio update, or updating a configure.XXX.bat script.
-
-:# Clear directory-specific variables that must be clear by default
-%CONFIG%.
-%CONFIG% SET "LINK_OUTDIR=" ^&:# By default, do not link it to the parent directory
-
 :# If this is a recursive all, no need to regenerate variables and rescan the system for compilers, etc.
 if defined ADD_POST_CONFIG_ACTION goto :Configure_init_done
 
@@ -2254,6 +2336,34 @@ set "OS[IA64]=IA64"
 set "OS[ARM]=ARM"
 set "OS[ARM64]=ARM64"
 if not defined THIS_OS set "THIS_OS=!OS[%ARCH%]!"
+
+call :%TASK%
+exit /b
+
+:#----------------------------------------------------------------------------#
+:#                                                                            #
+:#  Function        configure                                                 #
+:#                                                                            #
+:#  Description     Generate the %CONFIG.BAT% script for use by make.bat      #
+:#                                                                            #
+:#-----------------------------------------------------------------------------
+
+:configure
+:# Delete %CONFIG.BAT% before rebuilding it
+if exist %CONFIG.BAT% del %CONFIG.BAT%
+%CONFIG% :# %CONFIG.BAT% generated by %SCRIPT% on %DATE% %TIME%
+%CONFIG% :#
+%CONFIG% :# If changes are needeed, do not edit this file, but instead create a new script
+%CONFIG% :# called configure.YOURCHOICE.bat. This new script will be invoked automatically
+%CONFIG% :# by configure.bat while creating this file. Then your script can write extra
+%CONFIG% :# definitions, or change some of the variables before configure.bat writes them.
+%CONFIG% :#
+%CONFIG% :# Invoke configure.bat manually if anything changes in the tools config, such as
+%CONFIG% :# installing a Visual Studio update, or updating a configure.XXX.bat script.
+
+:# Clear directory-specific variables that must be clear by default
+%CONFIG%.
+%CONFIG% SET "LINK_OUTDIR=" ^&:# By default, do not link it to the parent directory
 
 :# Find Microsoft development tools directories
 echo OS	Tool	Proc	Path
