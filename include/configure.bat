@@ -216,13 +216,15 @@
 :#                  Added support for the new STINCLUDE variable.             *
 :#   2025-08-29 JFL Added option -lvs to list available Visual Studio versions.
 :#   2025-09-04 JFL Added options -lvc & -lsdk, and an opt. target processor. *
+:#   2025-09-11 JFL Added support for Visual Studion 2026 Insiders preview.   *
+:#                  Fixed option -c which was broken in multiple ways.        *
 :#                                                                            *
 :#      © Copyright 2016-2020 Hewlett Packard Enterprise Development LP       *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2025-09-04"
+set "VERSION=2025-09-11"
 set "SCRIPT=%~nx0"				&:# Script name
 set "SPATH=%~dp0" & set "SPATH=!SPATH:~0,-1!"	&:# Script path, without the trailing \
 set  "ARG0=%~f0"				&:# Script full pathname
@@ -1642,6 +1644,7 @@ set "PROC[MIPS]=mips"	&:# SysToolsLib and VC 8 name
 set "PROC[IA64]=ia64"	&:# SysToolsLib and VC 8 name
 
 :# List of Visual Studio aliases and paths
+set "VSN[2026]=18"  & set "VSA[18]=18/2026"   & set "VSP[18]=Microsoft Visual Studio\18"		
 set "VSN[2022]=17"  & set "VSA[17]=17/2022"   & set "VSP[17]=Microsoft Visual Studio\2022"		
 set "VSN[2019]=16"  & set "VSA[16]=16/2019"   & set "VSP[16]=Microsoft Visual Studio\2019"		
 set "VSN[2017]=15"  & set "VSA[15]=15/2017"   & set "VSP[15]=Microsoft Visual Studio\2017"		
@@ -1657,7 +1660,7 @@ set "VSN[98]=6"     & set "VSA[6]=6/98"       & set "VSP[6]=Microsoft Visual Stu
 set "VSN[97]=5"     & set "VSA[5]=5/97"       & set "VSP[5]=Microsoft Visual Studio"			
 
 :# Space-separated list of VC subdirectories to search
-set "VC15S=Enterprise\VC Professional\VC Community\VC Preview\VC"
+set "VC15S=Enterprise\VC Professional\VC Community\VC Preview\VC Insiders\VC"
 exit /b
 
 :# Find the latest Visual Studio version supporting the specified OS & architecture
@@ -1803,6 +1806,7 @@ https://en.wikipedia.org/wiki/Microsoft_Visual_C%2B%2B#Internal_version_numberin
 https://devblogs.microsoft.com/oldnewthing/20221219-00/?p=107601
 													     :#        Link SUBSYSTEM (Not the same as windows.h WINVER, which is set in the WINSDK)
 :lastvs	&:#  VS Alias	VS Installation directory	     	     VC subdirs	  BIN database		      _MSC_VER	Min   Default	Notes (To find Min & Default, try various WINVER values in a makefile)
+%SEARCH_IN%  18/2026	"%PF64%\Microsoft Visual Studio\18"  		"%VC15S%" BIN15	&& goto :foundvs    &:# 1940	5.01	6.00	Tested and known to work fine
 %SEARCH_IN%  17/2022	"%PF64%\Microsoft Visual Studio\2022"		"%VC15S%" BIN15	&& goto :foundvs    &:# 1930	5.01	6.00	Tested and known to work fine
 %SEARCH_IN%  16/2019	"%PF32%\Microsoft Visual Studio\2019"		"%VC15S%" BIN15	&& goto :foundvs    &:# 1920	5.01	6.00	Tested and known to work fine
 %SEARCH_IN%  15/2017	"%PF32%\Microsoft Visual Studio\2017"		"%VC15S%" BIN15	&& goto :foundvs    &:# 1910	5.01	6.00	Tested and known to work fine
@@ -2247,7 +2251,7 @@ echo   -lsdk [PROC]  List all Windows SDKs installed            ("")
 echo   -masm PATH    Path to MASM install dir, or - to disable. Default: C:\MASM
 echo   -msvc PATH    Path to MSVC 16-bits tools install dir, or -. Default: C:\MSVC
 echo   -nodos        Same as -masm - -msvc -
-echo   -o OUTDIR     Output base directory. Default: bin
+echo   -o OUTDIR     Output base directory. Default: %OUTDIR%
 echo   -p            Set persistent project path variables in HKCU\Environment
 echo   -r            Recursively configure all subprojects. Default
 echo   -R            Do not recursively configure all subprojects
@@ -2261,8 +2265,8 @@ exit /b 0
 :#-----------------------------------------------------------------------------
 
 :main
-set "CONFIG.BAT=config.%COMPUTERNAME%.bat"
-set "CONFIG=>>%CONFIG.BAT% echo"
+if not defined CONFIG.BAT set "CONFIG.BAT=config.%COMPUTERNAME%.bat"
+if not defined OUTDIR set "OUTDIR=bin"
 set "MASM="
 set "MSVC="
 set "VSTUDIO="
@@ -2270,13 +2274,14 @@ set "VSPATH="
 set "VSNAME="
 set "RECURSE=1"
 set "TASK=configure" &:# The main purpose of this script
+set "RECUR_ARGS="
 
 :next_arg
 %POPARG%
 if "!ARG!"=="" goto go
 if "!ARG!"=="-?" goto help
 if "!ARG!"=="/?" goto help
-if "!ARG!"=="-c" %POPARG% & set "CONFIG.BAT=config.!ARG!.bat" & goto next_arg
+if "!ARG!"=="-c" %POPARG% & set "CONFIG.BAT=config.!ARG!.bat" & set "RECUR_ARGS=!RECUR_ARGS! -c !ARG!" & goto next_arg
 if "!ARG!"=="-d" call :Debug.On & call :Verbose.On & goto next_arg
 if "!ARG!"=="-E" set "NMINCLUDE=" & goto next_arg
 if "!ARG!"=="-h" goto help
@@ -2288,7 +2293,7 @@ if "!ARG!"=="-lsdk" set "TASK=listAllSDK" & goto next_arg
 if "!ARG!"=="-masm" %POPARG% & set "MASM=!ARG!" & goto next_arg
 if "!ARG!"=="-msvc" %POPARG% & set "MSVC=!ARG!" & goto next_arg
 if "!ARG!"=="-nodos" set "MASM=-" & set "MSVC=-" & goto next_arg
-if "!ARG!"=="-o" %POPARG% & set "OUTDIR=!ARG!" & goto next_arg
+if "!ARG!"=="-o" %POPARG% & set "OUTDIR=!ARG!" & set "RECUR_ARGS=!RECUR_ARGS! -o !ARG!" & goto next_arg
 if "!ARG!"=="-p" set "PERSISTENT_VARS=1" & goto next_arg
 if "!ARG!"=="-r" set "RECURSE=1" & goto next_arg
 if "!ARG!"=="-R" set "RECURSE=0" & goto next_arg
@@ -2349,6 +2354,8 @@ exit /b
 :#-----------------------------------------------------------------------------
 
 :configure
+set "CONFIG=>>%CONFIG.BAT% echo"
+
 :# Delete %CONFIG.BAT% before rebuilding it
 if exist %CONFIG.BAT% del %CONFIG.BAT%
 %CONFIG% :# %CONFIG.BAT% generated by %SCRIPT% on %DATE% %TIME%
@@ -2960,7 +2967,7 @@ if "%RECURSE%"=="1" (
   %FOREACHLINE% %%d in ('%XCALL% :Do -V !CMD! 2^>NUL') do if exist "%%d" (
     %ECHO.V% :# Configuring %%d
     %_DO.XD% pushd "%%d"
-    %EXEC% -V call "%ARG0%"
+    %EXEC% -V call "%ARG0%" !RECUR_ARGS!
     %_DO.XD% popd
   )
 )
