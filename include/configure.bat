@@ -220,13 +220,14 @@
 :#                  Fixed option -c which was broken in multiple ways.        *
 :#   2025-09-22 JFL Restructured the Windows Kits detection, for improved     *
 :#		    reliability. Added option -gsdk for testing it.           *
+:#   2025-09-23 JFL Added option -sdk for selecting a given Windows Kit.      *
 :#                                                                            *
 :#      © Copyright 2016-2020 Hewlett Packard Enterprise Development LP       *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2025-09-22"
+set "VERSION=2025-09-23"
 set "SCRIPT=%~nx0"				&:# Script name
 set "SPATH=%~dp0" & set "SPATH=!SPATH:~0,-1!"	&:# Script path, without the trailing \
 set  "ARG0=%~f0"				&:# Script full pathname
@@ -1458,6 +1459,74 @@ call :trimright "%~1" "%~2"
 
 :#----------------------------------------------------------------------------#
 :#                                                                            #
+:#  Function        compare_versions                                          #
+:#                                                                            #
+:#  Description     Compare software versions                                 #
+:#                                                                            #
+:#  Arguments       %1		MAJOR[.MINOR[.PATCH[...]]]                    #
+:#                  %2		MAJOR[.MINOR[.PATCH[...]]]                    #
+:#                  %3		Output variable name			      #
+:#                                                                            #
+:#  Returns         0=success, else invalid arguments			      #
+:#                                                                            #
+:#  Notes 	    Returns < > = in OUTVAR                                   #
+:#                                                                            #
+:#  History                                                                   #
+:#   2021-04-12 JFL Created this routine.                                     #
+:#   2025-09-23 JFL Added routine :version_in_between.                        #
+:#                                                                            #
+:#----------------------------------------------------------------------------#
+:# Compare versions (MAJOR[.MINOR[.PATCH[...]]])
+
+:compare_vernum %1=NUM1 %2=NUM2 %3=OUTVAR Returns < > = in OUTVAR
+setlocal EnableExtensions EnableDelayedExpansion
+:# %ECHO.D% call %0 %*
+set "NUM1="
+for /f "tokens=* delims=0" %%a in ("%~1") do set "NUM1=%%a" &:# Trim left 0s
+if not defined NUM1 set "NUM1=0"
+if not "%NUM1%"=="%~1" %ECHOVARS.D% NUM1
+set "NUM2="
+for /f "tokens=* delims=0" %%a in ("%~2") do set "NUM2=%%a" &:# Trim left 0s
+if not defined NUM2 set "NUM2=0"
+if not "%NUM2%"=="%~2" %ECHOVARS.D% NUM2
+if %NUM1% LSS %NUM2% endlocal & set "%~3=<" & exit /b 0
+if %NUM1% GTR %NUM2% endlocal & set "%~3=>" & exit /b 0
+endlocal & set "%~3==" & exit /b 0
+
+:compare_versions %1=Maj.Min.Patch... %2=Maj.Min.Patch... %3=OUTVAR
+setlocal EnableExtensions EnableDelayedExpansion
+:# %ECHO.D% call %0 %*
+for /f "delims=.-_ tokens=1,2,3" %%i in ("%~1") do (
+  set "V1MAJOR=%%~i"
+  set "V1MINOR=%%~j"
+  set "V1PATCH=%%~k"
+)
+for /f "delims=.-_ tokens=1,2,3" %%i in ("%~2") do (
+  set "V2MAJOR=%%~i"
+  set "V2MINOR=%%~j"
+  set "V2PATCH=%%~k"
+)
+if not defined V1MAJOR endlocal & exit /b 1
+if not defined V2MAJOR endlocal & exit /b 1
+call :compare_vernum "%V1MAJOR%" "%V2MAJOR%" DIF
+if not "%DIF%"=="=" endlocal & set "%~3=%DIF%" & exit /b 0
+call :compare_vernum "%V1MINOR%" "%V2MINOR%" DIF
+if not "%DIF%"=="=" endlocal & set "%~3=%DIF%" & exit /b 0
+call :compare_vernum "%V1PATCH%" "%V2PATCH%" DIF
+if not "%DIF%"=="=" endlocal & set "%~3=%DIF%" & exit /b 0
+endlocal & set "%~3==" & exit /b 0
+
+:version_in_between %1=MIN %2=INPUT %3=MAX  Returns 0=TRUE, 1=FALSE
+%ECHO.D% call %0 %*
+setlocal
+call :compare_versions %1 %2 DIF
+if "%DIF%"==">" endlocal & exit /b 1
+call :compare_versions %2 %3 DIF
+if "%DIF%"==">" endlocal & exit /b 1
+endlocal & exit /b 0
+  
+:#----------------------------------------------------------------------------#
+:#                                                                            #
 :#  Function        Find16, Find32, Find64                                    #
 :#                                                                            #
 :#  Description     Find Microsoft development tools                          #
@@ -1892,10 +1961,12 @@ exit /b 0 &:# Found. Stop searching
 :WalkWindowSDKs CALLBACK [-min VERSION] [-max VERSION] [-platform PLATFORM]
 %FUNCTION0%
 SET "WINSDK="
-set "WINSDKMIN=NONE"
-set "WINSDKMAX="
+set "WINSDKMIN=0"
+set "WINSDKMAX=999999"
 set "WINSDKPROC=%ARCH%" &:# Don't use %PROCESSOR_ARCHITECTURE%
 set "WALK_SDK_CB="
+if /i "%SDK%"=="XP" set "SDK=10.0.19041"
+if defined SDK set "WINSDKMIN=%SDK%" & set "WINSDKMAX=%SDK%.999999.999999.999999"
 set ARGS=%*
 :next_winsdk_arg
 %POPARG%
@@ -1909,19 +1980,19 @@ if not defined WALK_SDK_CB set "WALK_SDK_CB=!ARG!" & goto :next_winsdk_arg
 if /i "!WINSDKPROC!"=="AMD64" set "WINSDKPROC=x64"
 :# Search new Windows Kits.
 for %%k in (10 8.1 8.0) do (
-  if defined WINSDKMAX if %%k==!WINSDKMAX! set "WINSDKMAX="
-  if not defined WINSDKMAX if defined WINSDKMIN for %%p in (%PF64AND32%) do (
+  for %%p in (%PF64AND32%) do (
     if not defined WINSDK if exist "%%~p\Windows Kits\%%k" call :WalkWkIn "%%~p\Windows Kits\%%k"
   )
-  if defined WINSDKMIN if %%k==!WINSDKMIN! set "WINSDKMIN="
 )
 :# Search older Microsoft Windows SDKs
 if not defined WINSDK for %%k in (v8.1A v8.1 v8.0A v8.0 v7.1A v7.1 v7.0A v7.0 v6.1 v6.0A v6.0 v5.2 v5.1 v5.0) do (
-  if defined WINSDKMAX if %%k==!WINSDKMAX! set "WINSDKMAX="
-  if not defined WINSDKMAX if defined WINSDKMIN for %%p in (%PF64AND32%) do (
+  set "WINSDK_VER=%%k"
+  set "WINSDK_VER=!WINSDK_VER:v=!"
+  set "WINSDK_VER=!WINSDK_VER:A=.1!"
+  set "WINSDK_VER=!WINSDK_VER:B=.2!"
+  for %%p in (%PF64AND32%) do (
     if not defined WINSDK call :WalkSdkIn "%%~p\Microsoft SDKs\Windows\%%k"
   )
-  if defined WINSDKMIN if %%k==!WINSDKMIN! set "WINSDKMIN="
 )
 :# Search even older SDKs
 if not defined WINSDK (
@@ -2016,6 +2087,12 @@ set "WINSDK_VER=%~2"
 if not defined WINSDK_VER set "WINSDK_VER=%~nx1"
 %ECHOVARS.D% WINSDK WINSDKPROC WINSDK_VER
 
+call :version_in_between "%WINSDKMIN%" "!WINSDK_VER!" "%WINSDKMAX%"
+if errorlevel 1 (
+  %ECHO.D% :# Version not between %WINSDKMIN% and %WINSDKMAX%
+  %RETURN% 1
+)
+  
 :# Check the existence of the kernel library for the target processor
 set "WINSDK_LIBDIR=%~1\Lib\%~2\um\!WINSDKPROC!"
 set "WINSDK_LIBDIR=%WINSDK_LIBDIR:\\um\=\um\%" &:# Remove extra \ if no sub-version
@@ -2329,11 +2406,11 @@ echo   -o OUTDIR     Output base directory. Default: %OUTDIR%
 echo   -p            Set persistent project path variables in HKCU\Environment
 echo   -r            Recursively configure all subprojects. Default
 echo   -R            Do not recursively configure all subprojects
+echo   -sdk VER      Windows SDK version VER = X.Y[.Z] &:# Also XP = last SDK targeting XP
 echo   -v            Verbose mode. Display what this script does
 echo   -vsp PATH     Visual Studio path in %%ProgramFiles%%. Default: Latest avail
 echo   -vsn NAME     Visual Studio name. Ex: 15 or 2017. Default: Latest avail
 echo   -V            Display %SCRIPT% version
-echo.
 exit /b 0
 
 :#-----------------------------------------------------------------------------
@@ -2343,6 +2420,7 @@ if not defined CONFIG.BAT set "CONFIG.BAT=config.%COMPUTERNAME%.bat"
 if not defined OUTDIR set "OUTDIR=bin"
 set "MASM="
 set "MSVC="
+set "SDK="
 set "VSTUDIO="
 set "VSPATH="
 set "VSNAME="
@@ -2372,6 +2450,7 @@ if "!ARG!"=="-o" %POPARG% & set "OUTDIR=!ARG!" & set "RECUR_ARGS=!RECUR_ARGS! -o
 if "!ARG!"=="-p" set "PERSISTENT_VARS=1" & goto next_arg
 if "!ARG!"=="-r" set "RECURSE=1" & goto next_arg
 if "!ARG!"=="-R" set "RECURSE=0" & goto next_arg
+if "!ARG!"=="-sdk" %POPARG% & set "SDK=!ARG!" & goto next_arg
 if "!ARG!"=="-v" call :Verbose.On & goto next_arg
 if "!ARG!"=="-vsp" %POPARG% & set "VSPATH=!ARG!" & goto next_arg
 if "!ARG!"=="-vsn" %POPARG% & set "VSNAME=!ARG!" & goto next_arg
