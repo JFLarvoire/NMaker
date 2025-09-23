@@ -218,13 +218,15 @@
 :#   2025-09-04 JFL Added options -lvc & -lsdk, and an opt. target processor. *
 :#   2025-09-11 JFL Added support for Visual Studion 2026 Insiders preview.   *
 :#                  Fixed option -c which was broken in multiple ways.        *
+:#   2025-09-22 JFL Restructured the Windows Kits detection, for improved     *
+:#		    reliability. Added option -gsdk for testing it.           *
 :#                                                                            *
 :#      © Copyright 2016-2020 Hewlett Packard Enterprise Development LP       *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2025-09-11"
+set "VERSION=2025-09-22"
 set "SCRIPT=%~nx0"				&:# Script name
 set "SPATH=%~dp0" & set "SPATH=!SPATH:~0,-1!"	&:# Script path, without the trailing \
 set  "ARG0=%~f0"				&:# Script full pathname
@@ -1876,27 +1878,40 @@ exit /b 1 &:# Simulate failure to find it, so that search continues for older ve
 :# Early SDKs were called PlatformSDK, and included in Visual Studio.
 :# Then they were called Windows SDKs, and optionally included libraries for multiple platforms=processors
 :# Then they were called Windows Kits, with a different tree structure.
-:findsdk [-min VERSION] [-max VERSION] [-platform PLATFORM] [-action Find|List]
+:findsdk [-min VERSION] [-max VERSION] [-platform PLATFORM]
 %FUNCTION0%
-SET WINSDK=
+call :WalkWindowSDKs :FindSdkCB %*
+if defined WINSDK echo %TOS%	WinSDK	%WINSDKPROC%	"%WINSDK%"
+%RETURN0%
+
+:FindSdkCB
+%ECHOVARS.D% WINSDK_VER WINSDK WINSDK_INCDIR WINSDK_INCLUDE WINSDK_LIB
+exit /b 0 &:# Found. Stop searching
+
+:# Enumerate all Windows SDKs, and call a callback for each of them
+:WalkWindowSDKs CALLBACK [-min VERSION] [-max VERSION] [-platform PLATFORM]
+%FUNCTION0%
+SET "WINSDK="
 set "WINSDKMIN=NONE"
 set "WINSDKMAX="
-set "WINSDKPROC=x86"
-set "WINSDKACT=Find"
+set "WINSDKPROC=%ARCH%" &:# Don't use %PROCESSOR_ARCHITECTURE%
+set "WALK_SDK_CB="
 set ARGS=%*
 :next_winsdk_arg
 %POPARG%
 if not defined ARG goto :done_sdk_arg
-if /i "!ARG!"=="-action" %POPARG% & set "WINSDKACT=!ARG!" & goto :next_winsdk_arg
 if /i "!ARG!"=="-min" %POPARG% & set "WINSDKMIN=!ARG!" & goto :next_winsdk_arg
 if /i "!ARG!"=="-max" %POPARG% & set "WINSDKMAX=!ARG!" & goto :next_winsdk_arg
 if /i "!ARG!"=="-platform" %POPARG% & set "WINSDKPROC=!ARG!" & goto :next_winsdk_arg
+if not defined WALK_SDK_CB set "WALK_SDK_CB=!ARG!" & goto :next_winsdk_arg
+>&2 echo Error: Unexpected argument: !"ARG"! & goto :next_winsdk_arg
 :done_sdk_arg
+if /i "!WINSDKPROC!"=="AMD64" set "WINSDKPROC=x64"
 :# Search new Windows Kits.
 for %%k in (10 8.1 8.0) do (
   if defined WINSDKMAX if %%k==!WINSDKMAX! set "WINSDKMAX="
   if not defined WINSDKMAX if defined WINSDKMIN for %%p in (%PF64AND32%) do (
-    if not defined WINSDK if exist "%%~p\Windows Kits\%%k" call :%WINSDKACT%WkIn "%%~p\Windows Kits\%%k"
+    if not defined WINSDK if exist "%%~p\Windows Kits\%%k" call :WalkWkIn "%%~p\Windows Kits\%%k"
   )
   if defined WINSDKMIN if %%k==!WINSDKMIN! set "WINSDKMIN="
 )
@@ -1904,16 +1919,16 @@ for %%k in (10 8.1 8.0) do (
 if not defined WINSDK for %%k in (v8.1A v8.1 v8.0A v8.0 v7.1A v7.1 v7.0A v7.0 v6.1 v6.0A v6.0 v5.2 v5.1 v5.0) do (
   if defined WINSDKMAX if %%k==!WINSDKMAX! set "WINSDKMAX="
   if not defined WINSDKMAX if defined WINSDKMIN for %%p in (%PF64AND32%) do (
-    if not defined WINSDK call :%WINSDKACT%SdkIn "%%~p\Microsoft SDKs\Windows\%%k"
+    if not defined WINSDK call :WalkSdkIn "%%~p\Microsoft SDKs\Windows\%%k"
   )
   if defined WINSDKMIN if %%k==!WINSDKMIN! set "WINSDKMIN="
 )
 :# Search even older SDKs
 if not defined WINSDK (
-  call :%WINSDKACT%SdkIn "%PF32%\Microsoft SDK" &rem :# Location for the 2001-08 SDK (Notice it's SDK without an s)
+  call :WalkSdkIn "%PF32%\Microsoft SDK" &rem :# Location for the 2001-08 SDK (Notice it's SDK without an s)
 )
 if not defined WINSDK (
-  call :%WINSDKACT%SdkIn "!%VC%!\PlatformSDK" &rem :# Else try using the oldest ones, coming with Visual Studio
+  call :WalkSdkIn "!%VC%!\PlatformSDK" &rem :# Else try using the oldest ones, coming with Visual Studio
 )
 if not defined WINSDK (
   %ECHO.D% :# Not Found
@@ -1929,12 +1944,11 @@ if defined WINSDK if "%NEEDSHORTPATH%"=="1" (
   %ECHOVARS.D% WINSDK_INCDIR
 )
 
-if defined WINSDK echo %TOS%	WinSDK	%WINSDKPROC%	"%WINSDK%"
 %RETURN#% "WINSDK=%WINSDK%"
 
 :# Find old-style Windows SDKs
-:FindSdkIn %1=Base directory to search in
-%ECHO.D% :# Searching in "%~1"
+:WalkSdkIn %1=Base directory to search in
+%FUNCTION0%
 if /i "!WINSDKPROC!"=="x86" (
   set "SUBDIR=%~1\lib"
 ) else (
@@ -1945,81 +1959,141 @@ if /i "!WINSDKPROC!"=="x86" (
 if exist "!SUBDIR!\kernel32.lib" (
   %ECHO.D% :# Found
   set "WINSDK=%~1"
-  set "WINSDK_VER="
+  for /d %%l in ("!WINSDK!") do (
+    set "WINSDK_VER=%%~nxl"
+    set "WINSDK_VER=!WINSDK_VER:~1!"
+  )
   set "WINSDK_BIN=!SUBDIR:\Lib=\Bin!"
   set "WINSDK_INCDIR=!WINSDK!\Include"
   set "WINSDK_INCLUDE=!WINSDK_INCDIR!"
   set "WINSDK_LIBDIR=!SUBDIR!"
   set "WINSDK_LIB=!WINSDK_LIBDIR!"
-  %ECHOVARS.D% WINSDK WINSDK_INCDIR WINSDK_INCLUDE WINSDK_LIB
+  call %WALK_SDK_CB%
+) else (
+  %FALSE.EXE% &rem :# Not found. Keep searching.
 )
-goto :eof
+%RETURN0%
 
 :# Find New-style Windows Kits
-:FindWkIn %1=Base directory to search in
-%ECHO.D% :# Searching in "%~1"
+:WalkWkIn %1=Base directory to search in
+%FUNCTION0%
 set "WINSDK_LIB="
 :# Search for the latest Windows kit, as multiple builds may be installed in parallel
-for /d %%l in ("%~1\Lib" "%~1\Lib\*") do if exist "%%~l\um\!WINSDKPROC!\kernel32.lib" set "WINSDK_LIB=%%l"
-if defined WINSDK_LIB for %%l in ("%WINSDK_LIB%") do (
-  %ECHO.D% :# Found
-  set "WINSDK=%~1"
-  set "WINSDK_VER=%%~nxl"
-  set "WINSDK_LIBDIR=%%~l\um\!WINSDKPROC!"
-  :# WINSDK executables are host-specific, not target-specific.
-  set "SUBDIR=%PROCESSOR_ARCHITECTURE%" &:# So look for the host-specific subdirectory
-  if /i "!SUBDIR!"=="AMD64" set "SUBDIR=x64"
-  set "WINSDK_BIN=!WINSDK!\Bin\!SUBDIR!"
-  :# Some SDKs have their files in a bin subdir, with the SDK version. Ex: bin\10.0.16299.0\arm64
-  for /d %%d in ("!WINSDK!\Bin\!WINSDK_VER!\!SUBDIR!") do if exist "%%~d\rc.exe" set "WINSDK_BIN=%%~d"
-  set "WINSDK_INCDIR="
-  set "WINSDK_INCLUDE="
-  for /d %%d in ("!WINSDK!\Include" "!WINSDK!\Include\!WINSDK_VER!") do ( :# Pre-release kits have an additional subdir level
-    if exist "%%~d\um\windows.h" (
-      set "WINSDK_INCDIR=%%~d"
-      for %%s in (ucrt shared um winrt) do (
-	if exist "!WINSDK_INCDIR!\%%~s" set "WINSDK_INCLUDE=!WINSDK_INCLUDE!;!WINSDK_INCDIR!\%%s"
-      )
-      set "WINSDK_INCLUDE=!WINSDK_INCLUDE:~1!" &rem :# Remove the initial ; inserted above
-    )
-  set "WINSDK_LIB=!WINSDK_LIBDIR!"
+:# The latest kit version is actually listed in the SDKManifest.xml file.
+set "XMLSDK_VER="
+if exist "%~1\SDKManifest.xml" ( :# This file describes the latest kit there
+  %ECHO.D% :# Parsing "%~1\SDKManifest.xml"
+  :# Quick and dirty hack, that will break if the XML file is restructured!
+  for /f "delims=" %%l in ('findstr PlatformIdentity "%~1\SDKManifest.xml" 2^>NUL') do (
+    set "LINE=%%l" &:# Ex: LINE=  PlatformIdentity = "UAP, Version=10.0.22621.0"
+    set "LINE=!LINE:*Version=!" &:# Ex: LINE==10.0.22621.0"
+    set "XMLSDK_VER!LINE!
+    %ECHO.D% :# The manifest's SDK version = !XMLSDK_VER!
   )
-  %ECHOVARS.D% WINSDK WINSDKPROC WINSDK_VER WINSDK_LIBDIR WINSDK_BIN WINSDK_INCDIR WINSDK_INCLUDE WINSDK_LIB
 )
-goto :eof
+if defined XMLSDK_VER ( :# First try the manifest's version
+  call :ValidateWk %1 "%XMLSDK_VER%" && call %WALK_SDK_CB%
+)
+if not defined WINSDK ( :# Some SDKs (Ex: 8.x) do not have sub-versions
+  call :ValidateWk %1 "" && call %WALK_SDK_CB%
+)
+:# Else try every sub-version there in descending order, skipping the manifest's version
+for /f %%l in ('dir /b /ad /o-n "%~1\Lib\*" 2^>NUL') do if not "%%~l"=="%XMLSDK_VER%" (
+  if not defined WINSDK (
+    call :ValidateWk %1 "%%~l" && call %WALK_SDK_CB%
+  )
+)
+%RETURN0%
 
-:ListAllSDK
-%FUNCTION0%
-set "PROC=%~1" & if not defined PROC set "PROC=x86"
-if "!PROC!"=="amd64" set "PROC=x64" &:# In SDK-speak, the amd64 is an x64
-%ECHO.V% # Windows SDKs for the %PROC%
-%ECHO.V% Version		Pathname
-set "WINSDK="
-set "FINDOPTS=-action List"
-set "FINDOPTS=!FINDOPTS! -platform %PROC%"
-call :findsdk !FINDOPTS!
+:# A Windows Kit is deemed usable if it contains...
+:# - The libraries (Ex: kernel32.lib)
+:# - The tools (Ex: rc.exe)
+:# - The include files (Ex: windows.h)
+:ValidateWk %1=Base directory to search in  %2=Kit version. or "" for searching one without a sub-version
+%FUNCTION% EnableExtensions EnableDelayedExpansion
+set "WINSDK=%~1"
+set "WINSDK_VER=%~2"
+if not defined WINSDK_VER set "WINSDK_VER=%~nx1"
+%ECHOVARS.D% WINSDK WINSDKPROC WINSDK_VER
+
+:# Check the existence of the kernel library for the target processor
+set "WINSDK_LIBDIR=%~1\Lib\%~2\um\!WINSDKPROC!"
+set "WINSDK_LIBDIR=%WINSDK_LIBDIR:\\um\=\um\%" &:# Remove extra \ if no sub-version
+if not exist "!WINSDK_LIBDIR!\kernel32.lib" (
+  %ECHO.D% :# No kernel32.lib library in "!WINSDK_LIBDIR!"
+  %RETURN% 1
+)
+%ECHOVARS.D% WINSDK_LIBDIR
+
+:# Check the existence of the executable tools
+:# WINSDK executables are host-specific, not target-specific.
+set "SUBDIR=%ARCH%" &:# So look for the host-specific subdirectory
+if /i "!SUBDIR!"=="AMD64" set "SUBDIR=x64"
+set "WINSDK_BIN="
+:# Some SDKs have their files in a bin subdir, with the SDK version. Ex: 10\bin\10.0.16299.0\arm64
+:# Others have them directly underneath the bin subdir. Ex: 8.1\bin\x64
+for /d %%d in ("!WINSDK!\Bin\!SUBDIR!" "!WINSDK!\Bin\!WINSDK_VER!\!SUBDIR!") do if exist "%%~d\rc.exe" set "WINSDK_BIN=%%~d"
+if not defined WINSDK_BIN (
+  %ECHO.D% :# No executables in "!WINSDK!\Bin\!SUBDIR!" or "!WINSDK!\Bin\!WINSDK_VER!\!SUBDIR!"
+  %RETURN% 1
+)
+%ECHOVARS.D% WINSDK_BIN
+
+:# Check the existence of the include files
+set "WINSDK_INCDIR="
+set "WINSDK_INCLUDE="
+for /d %%d in ("!WINSDK!\Include" "!WINSDK!\Include\!WINSDK_VER!") do ( :# Pre-release kits have an additional subdir level
+  if exist "%%~d\um\windows.h" (
+    set "WINSDK_INCDIR=%%~d"
+    for %%s in (ucrt shared um winrt) do (
+      if exist "!WINSDK_INCDIR!\%%~s" set "WINSDK_INCLUDE=!WINSDK_INCLUDE!;!WINSDK_INCDIR!\%%s"
+    )
+    set "WINSDK_INCLUDE=!WINSDK_INCLUDE:~1!" &rem :# Remove the initial ; inserted above
+  )
+)
+if not defined WINSDK_INCLUDE (
+  %ECHO.D% :# No include files in "!WINSDK!\Include" or "!WINSDK!\Include\!WINSDK_VER!"
+  %RETURN% 1
+)
+
+set "WINSDK_LIB=!WINSDK_LIBDIR!"
+
+:# This is a usable Windows SDK. Return all values found.
+%UPVAR% WINSDK_VER WINSDK WINSDK_BIN WINSDK_INCDIR WINSDK_INCLUDE WINSDK_LIBDIR WINSDK_LIB
+%ECHO.D% :# Found
 %RETURN% 0
 
-:ListSdkIn
-call :FindSdkIn %*
-if defined WINSDK (
-  for /d %%l in ("!WINSDK!") do (
-    set "VER=%%~nxl"
-    set "VER=!VER:~1!"
-    echo !VER!		%%~l
-  )
-  set "WINSDK="
-)
-exit /b 0
+:# List all installed SDKs
+:ListAllSDK TARGET_PROC
+%FUNCTION0%
+set "WINSDKPROC=%~1"
+if not defined WINSDKPROC set "WINSDKPROC=%ARCH%"
+%ECHO.V% # Windows SDKs for the %WINSDKPROC%
+%ECHO.V% Version		Pathname
+call :WalkWindowSDKs :ListSdkCB -platform %WINSDKPROC%
+%RETURN0%
 
-:ListWkIn
-call :FindWkIn %*
-if defined WINSDK (
-  rem echo !WINSDK_VER!	!WINSDK!
-  for /d %%l in ("%~1\Lib" "%~1\Lib\*") do if exist "%%~l\um\!WINSDKPROC!\kernel32.lib" echo %%~nxl	%%~l
-  set "WINSDK="
+:ListSdkCB
+set "MSG=!WINSDK_VER!                "
+echo !MSG:~0,16!!WINSDK!
+set "WINSDK=" &:# Pretend the SDK was not found, and keep walking the list.
+exit /b 1 &:# Pretend it's not found; Keep searching
+
+:# Test the findsdk routine
+:GetSDK Same arguments as :findsdk and :WalkWindowSDKs
+%FUNCTION0%
+if "%1"=="-?" (
+  echo Usage: configure -ssdk [-min VERSION] [-max VERSION] [-platform PLATFORM]
+  exit /b 0
 )
-exit /b 0
+call :WalkWindowSDKs :FindSdkCB %*
+if defined WINSDK (
+  for %%v in (WINSDKPROC WINSDK_VER WINSDK WINSDK_BIN WINSDK_INCDIR WINSDK_INCLUDE WINSDK_LIBDIR WINSDK_LIB) do (
+    set "MSG=%%v                "
+    echo !MSG:~0,16!!%%v!
+  )
+)
+%RETURN0%
 
 :#-----------------------------------------------------------------------------
 :# Find 32 or 64-bits Microsoft Visual C++
@@ -2167,7 +2241,7 @@ if defined WINSDK (
   set "%VC%.LIBPATH=!%VC%.LIBPATH!;!WINSDK_LIB!"
   set TRYDIRS=!TRYDIRS! "%WINSDK_BIN%"
   if /i not %PROC%==x86 (
-    if /i not %PROC%==amd64 if /i %PROCESSOR_ARCHITECTURE%==amd64 (
+    if /i not %PROC%==amd64 if /i %ARCH%==amd64 (
       for %%b in ("%WINSDK_BIN%") do set TRYDIRS=!TRYDIRS! "%%~dpbx64"
     )
     for %%b in ("%WINSDK_BIN%") do set TRYDIRS=!TRYDIRS! "%%~dpbx86"
@@ -2284,6 +2358,7 @@ if "!ARG!"=="/?" goto help
 if "!ARG!"=="-c" %POPARG% & set "CONFIG.BAT=config.!ARG!.bat" & set "RECUR_ARGS=!RECUR_ARGS! -c !ARG!" & goto next_arg
 if "!ARG!"=="-d" call :Debug.On & call :Verbose.On & goto next_arg
 if "!ARG!"=="-E" set "NMINCLUDE=" & goto next_arg
+if "!ARG!"=="-gsdk" set "TASK=GetSDK !ARGS!" & set "ARGS=" & goto go &:# Test the findsdk routine. Use -gsdk -? for details.
 if "!ARG!"=="-h" goto help
 if "!ARG!"=="-l" %POPARG% & call :Debug.SetLog !"ARG"! & goto next_arg
 if "!ARG!"=="-L" call :Debug.SetLog & goto next_arg
