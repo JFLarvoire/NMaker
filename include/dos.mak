@@ -175,6 +175,7 @@
 #    2024-01-08 JFL Fixed bugs in the $(CONV_SOURCES) batch script.           #
 #    2024-10-14 JFL Consistent generation of DOS & WIN32 config.h files.      #
 #    2024-10-19 JFL Fixed a bug in RemBOM.bat which caused a hang in W7VM.    #
+#    2025-09-26 JFL The batch config file name is config.$(CONFNAME).bat.     #
 #		    							      #
 #      © Copyright 2016-2018 Hewlett Packard Enterprise Development LP        #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
@@ -441,6 +442,10 @@ CONVERT_STAMP=$(S2)\LastConv.txt # Timestamps when the last conversion was done
 COMPACT_PATHS=$(X)\CompactP.bat # Compact paths, to avoid passing the 256-char length limit that causes out-of-memory errors for the DOS C compiler
 !IF !DEFINED(CONV)
 CONV=$(COMSPEC) /c $(CONV_SCRIPT)
+!ENDIF
+
+!IF !DEFINED(CONFNAME)
+CONFNAME=$(COMPUTERNAME)	# The batch config file name is config.$(CONFNAME).bat
 !ENDIF
 
 # Library SuffiX. For storing multiple versions of the same library in a single directory.
@@ -1391,7 +1396,7 @@ $(UTF8_BOM_FILE): "$(THIS_MAKEFILE)"
 	WScript.Quit(0);
 <<NOKEEP
 
-$(CONFIG_H): $(I) "$(THIS_MAKEFILE)" config.$(COMPUTERNAME).bat
+$(CONFIG_H): $(I) "$(THIS_MAKEFILE)" config.$(CONFNAME).bat
     $(MSG) Generating include file $@
     copy <<$@ NUL
 /* OS & Compiler-specific definitions, usually created by ./configure Unix scripts */
@@ -1499,11 +1504,11 @@ $(CONV_SOURCES): "$(THIS_MAKEFILE)"
     $(MSG) Generating script $@
     copy <<$@ NUL
         @echo off
-        :# If config.$(COMPUTERNAME).bat changed, then ALL sources must be converted
+        :# If config.$(CONFNAME).bat changed, then ALL sources must be converted
 	set "DESTDIR="
 	if not exist $(CONVERT_STAMP) (
 	  set "DESTDIR=NOWHERE" & rem :# Makes sure that xcopy will list every file as needing to be copied
-	) else for %%f in ("$(THIS_MAKEFILE)" config.$(COMPUTERNAME).bat) do (
+	) else for %%f in ("$(THIS_MAKEFILE)" config.$(CONFNAME).bat) do (
 	  if not defined DESTDIR for /f "usebackq delims=: tokens=2" %%x in (
 	    `xcopy /c /d /l /y %%f $(CONVERT_STAMP) 2^>NUL ^| findstr ":"`
 	  ) do set "DESTDIR=NOWHERE" & rem :# Makes sure that xcopy will list every file as needing to be copied

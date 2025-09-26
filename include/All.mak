@@ -162,6 +162,7 @@
 #    		    Added variable ONLY_OS to restrict the buildable set.     #
 #    		    Added variable TEST_OS to define the OS list for testing. #
 #    2024-10-11 JFL Bug fixes & performance improvements.                     #
+#    2025-09-24 JFL The batch config file name is config.$(CONFNAME).bat.     #
 #    		    							      #
 #       © Copyright 2016-2017 Hewlett Packard Enterprise Development LP       #
 # Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 #
@@ -712,7 +713,8 @@ list_dirs: NUL
 # Build individual modules in the specified subdirectories
 $(DIRS): NUL
     rem # Build the module in dir $@, using the current log file
-    cd $@ & (for %%f in (config.%COMPUTERNAME%.bat) do if exist %%f call %%f) & \
+    cd $@ & (if not defined CONFNAME set "CONFNAME=%COMPUTERNAME%") & \
+      (for %%f in (config.%CONFNAME%.bat) do if exist %%f call %%f) & \
       $(SUBMAKE) $(MAKEDEFS) || $(MSG) $@ build failed. Error %ERRORLEVEL% & exit /b
 !ENDIF
 
