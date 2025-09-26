@@ -118,13 +118,14 @@
 :#   2023-01-03 JFL Define MAKERELDIR with the relative path from the start.  *
 :#   2024-01-05 JFL Delete the previous log file in all cases.                *
 :#                  Don't rename the log file after the goal when -l is used. *
+:#   2025-09-24 JFL Make sure -c CONFNAME is inherited by sub-make.bat instcs.*
 :#                                                                            *
 :#      © Copyright 2016-2020 Hewlett Packard Enterprise Development LP       *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2024-01-05"
+set "VERSION=2025-09-24"
 set "SCRIPT=%~nx0"				&:# Script name
 set "SPATH=%~dp0" & set "SPATH=!SPATH:~0,-1!"	&:# Script path, without the trailing \
 set  "ARG0=%~f0"				&:# Script full pathname
@@ -1299,7 +1300,7 @@ echo Usage: %SCRIPT% [options] [nmake_options] [macrodefs] [targets] ...
 echo.
 echo Options:
 echo   -?^|-h         This help
-echo   -c CONFIG     Use conf. from config.CONFIG.bat. Default: config.%COMPUTERNAME%.bat
+echo   -c CONFIG     Use conf. from config.CONFIG.bat. Default: config.%CONFNAME%.bat
 echo   -C DIRECTORY  Change the current directory before doing anything
 echo   -cde          Clean Debug Environment variables, if the script was interrupted
 echo   -d            Run this script in debug mode
@@ -1485,7 +1486,8 @@ set "MAKEFILE=%~1" & exit /b 1
 :main
 set "BMAKE="%~f0""	&:# The full pathname to this make.bat script, with quotes
 set "BCONF=%BMAKE:make.bat=configure.bat%" &:# The full pathname of configure.bat
-set "CONFIG.BAT=config.%COMPUTERNAME%.bat" &:# The output file for this make.bat script
+if not defined CONFNAME set "CONFNAME=%COMPUTERNAME%"
+set "CONFIG.BAT=config.%CONFNAME%.bat" &:# The output file for this make.bat script
 set "POST_MAKE_ACTIONS=" &:# A series of commands to run after the final endlocal after make
 if not defined MAKEDEPTH ( :# This is the initial make.bat instance. Show the final result.
   set "MAKEDEPTH=0"
@@ -1516,7 +1518,7 @@ if not defined ARGS set "ARG=" & goto go
 %POPARG%
 if "!ARG!"=="-?" goto help
 if "!ARG!"=="/?" goto help
-if "!ARG!"=="-c" %POPARG% & set "CONFIG.BAT=config.!ARG!.bat" & goto next_arg
+if "!ARG!"=="-c" %POPARG% & set "CONFNAME=!ARG!" & set "CONFIG.BAT=config.!ARG!.bat" & goto next_arg
 if "!ARG!"=="-C" %POPARG% & call :MakeInDir %* & exit /b
 if "!ARG!"=="-cde" goto :CleanDebugEnvironment
 if "!ARG!"=="-d" call :Debug.On & call :Verbose.On & goto next_arg
