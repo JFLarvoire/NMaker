@@ -1,0 +1,7 @@
+.gitignore
+Temp/
+
+*~
+*#
+*.0??
+*.bak
