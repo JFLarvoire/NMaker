@@ -143,6 +143,7 @@
 *    2020-12-11 JFL Added XDEBUG_WPRINTF and RETURN_DWORD* macros.            *
 *    2022-02-17 JFL Added the INLINE macro, and ShrinkBuf() inline function.  *
 *    2023-10-15 JFL Added macro DEBUG_PRINT_INT_VAR().                        *
+*    2025-12-03 JFL Make sure ShrinkBuf() preserves errno.                    *
 *		    							      *
 *	 (C) Copyright 2016 Hewlett Packard Enterprise Development LP	      *
 * Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 *
@@ -156,6 +157,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>	/* Macros use malloc */
+#include <errno.h>
 #endif
 
 #ifdef __cplusplus
@@ -192,8 +194,11 @@ extern "C" {
 /* Reallocate a buffer to a smaller size, if possible */
 #if !(defined(_BIOS) || defined(_LODOS))
 static INLINE void *ShrinkBuf(void *old_buf, size_t new_size) { /* Make it inline since it's so trivial */
+  int e = errno;
   void *new_buf = realloc(old_buf, new_size); /* This may fail, even for a smaller size */
-  return new_buf ? new_buf : old_buf; /* In case of failure, keep using the larger buffer */
+  if (new_buf) return new_buf;
+  errno = e;		/* Restore the initial errno, which was overwritten by the failing realloc */
+  return old_buf;	/* In case of failure, keep using the larger buffer */
 }
 #else
 #define ShrinkBuf(old_buf, new_size) (old_buf) /* Make it a noop as BiosLib & LoDosLib don't have realloc() */
