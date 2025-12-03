@@ -26,6 +26,7 @@
 *    2019-11-19 JFL Split off of SysToolsLib's include/stversion.h.           *
 *    2020-04-19 JFL Added support for MacOS.                                  *
 *    2020-04-20 JFL Moved the debug qualifier right after the date/version.   *
+*    2025-12-03 JFL Define the _UNIX constant for supported flavors of Unix.  *
 *                                                                             *
 *        (C) Copyright 2016 Hewlett Packard Enterprise Development LP         *
 * Licensed under the Apache 2.0 license - www.apache.org/licenses/LICENSE-2.0 *
@@ -131,7 +132,7 @@
 #  define EXE_SUFFIX ""
 #endif /* __unix__ */
 
-#ifdef __MACH__         /* Automatically defined when targeting a Mach app. */
+#ifdef __MACH__         /* Automatically defined when targeting a Mach app. (Ex: Apple OS) */
 #  if defined(__APPLE__)
 #    define EXE_OS_NAME "MacOS"
 #  else
@@ -139,6 +140,13 @@
 #  endif
 #  define EXE_SUFFIX ""
 #endif /* __MACH__ */
+
+/* This is also defined in SysToolsLib's SysLib.h. Keep them in sync. */
+#if defined(__unix__) /* Ex: Linux */ || defined(__MACH__) /* Ex: Apple OS */
+#  if !defined(_UNIX)
+#    define _UNIX /* Tells that we support this flavor of Unix */
+#  endif
+#endif
 
 /**************** End of OS identification string definition *****************/
 
