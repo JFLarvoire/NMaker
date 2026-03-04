@@ -27,7 +27,8 @@ The project name _NMaker_ is a nostalgic allusion to the old nmaker.exe program,
 * Build universal executables that work in *all* Microsoft operating systems, from DOS 5 to Windows 95 to Windows 10.
 * Define recursive projects with a few simple make files describing _what_ to build, not how.
 * Configure and make scripts for Visual C++ nmake.exe, with a look and feel similar to Unix standards.
-* Supports Visual C++ 8 (For building in Windows 10 for DOS and Windows 95) to Visual C++ 16 (For Windows 7 and later).
+* Supports Visual C++ 8 (For building in Windows 10 for DOS and Windows 95) to Visual C++ 16 (For Windows 7 and later)
+  and to Visual C++ 18 (For Windows 10 and later).
 * Builds by default the release version for the current OS.
 
 
@@ -199,6 +200,9 @@ For that, developers should create in their source directory one or more of thes
 |                 | SOURCES = Sources to compile and link together, when building a single program.  
 |                 | OBJECTS = List of object files link together. Rarely needed, as it's usually computed automatically from SOURCES.  
 |                 | LIBRARIES = Libraries to link with the program. Rarely needed, as this list is usually built automatically.  
+|                 | CLEAN_FILES = Additional files that should be erased my `make clean`. Wildcards accepted.  
+|                 | CLEAN_DIRS = Additional directories that should be cleaned my `make clean`.  
+|                 | CLEAN_OUTDIRS = Idem, but also delete target OS-specific subdirectories there.  
 |                 | Files.mak is required in most projects, and is sufficient in most simple cases.
 | makefile        | GNU make file, with gmake-specific rules for building the project in Unix.
 | NMakefile       | MS nmake file, with nmake-specific rules for building the project in Windows, for DOS & Windows targets.
@@ -222,7 +226,7 @@ Import NMaker files in your project this way:
    
  - Commit the .gitmodules file and the NMaker directory into the git repository.
 
-Later on, if desired, it's possible to get the NMaker updates by running `git submodule update --remote`.
+Later on, if desired, it's possible to get the NMaker updates by running `git submodule update --remote --merge`.
 
 ### make.bat usage
 
