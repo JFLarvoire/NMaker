@@ -30,6 +30,7 @@
 :#   2021-01-28 JFL Search in [.|..|..\..]\[.|NMaker|WIN32|C]\include.        *
 :#                  Update the STINCLUDE variable in the caller's scope.      *
 :#   2021-02-03 JFL Renamed variable STINCLUDE as NMINCLUDE.                  *
+:#   2026-03-11 JFL Added an additional search path for NMINCLUDE.            *
 :#                                                                            *
 :#        © Copyright 2016 Hewlett Packard Enterprise Development LP          *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
@@ -74,7 +75,7 @@ goto :next_arg
 if defined NMINCLUDE %CHECKDIR% "%NMINCLUDE%" &:# If pre-defined, make sure the value is valid
 
 :# As a first choice, use the make.bat provided in this project
-if not defined NMINCLUDE %CHECKDIR% include NMaker\include win32\include C\include &:# If we have one here, use it
+if not defined NMINCLUDE %CHECKDIR% include NMaker\include win32\include win32\NMaker\include C\include &:# If we have one here, use it
 :# Else try in the near context
 for %%p in (.. ..\..) do if not defined NMINCLUDE %CHECKDIR% %%p\include %%p\NMaker\include %%p\win32\include %%p\C\include &:# Default: Search it the parent directory, and 2nd level.
 :# We might also store the information in the registry
