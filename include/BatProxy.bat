@@ -30,14 +30,16 @@
 :#   2021-01-28 JFL Search in [.|..|..\..]\[.|NMaker|WIN32|C]\include.        *
 :#                  Update the STINCLUDE variable in the caller's scope.      *
 :#   2021-02-03 JFL Renamed variable STINCLUDE as NMINCLUDE.                  *
-:#   2026-03-11 JFL Added an additional search path for NMINCLUDE.            *
+:#   2026-03-11 JFL Also search for NMINCLUDE in [...]\WIN32\NMaker\include.  *
+:#   2026-03-29 JFL Added a missing case for the 2026-03-11 addition.	      *
+:#                  Fixed the script name displayed when admitting defeat.    *
 :#                                                                            *
 :#        © Copyright 2016 Hewlett Packard Enterprise Development LP          *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2021-02-03"
+set "VERSION=2026-03-29"
 set "SCRIPT=%~nx0"				&:# Script name
 
 goto main
@@ -77,7 +79,7 @@ if defined NMINCLUDE %CHECKDIR% "%NMINCLUDE%" &:# If pre-defined, make sure the 
 :# As a first choice, use the make.bat provided in this project
 if not defined NMINCLUDE %CHECKDIR% include NMaker\include win32\include win32\NMaker\include C\include &:# If we have one here, use it
 :# Else try in the near context
-for %%p in (.. ..\..) do if not defined NMINCLUDE %CHECKDIR% %%p\include %%p\NMaker\include %%p\win32\include %%p\C\include &:# Default: Search it the parent directory, and 2nd level.
+for %%p in (.. ..\..) do if not defined NMINCLUDE %CHECKDIR% %%p\include %%p\NMaker\include %%p\win32\include %%p\win32\NMaker\include %%p\C\include &:# Default: Search it the parent directory, and 2nd level.
 :# We might also store the information in the registry
 if not defined NMINCLUDE ( :# Try getting the copy in the master environment
   for /f "tokens=3" %%v in ('reg query "HKCU\Environment" /v NMINCLUDE 2^>NUL') do set "NMINCLUDE=%%v"
@@ -95,7 +97,7 @@ if not defined NMINCLUDE (
 )
 :# If we still can't find it, admit defeat
 if not exist %NMINCLUDE%\make.bat (
-  >&2 echo %0 Error: Cannot find NMaker's global C include directory. Please define variable NMINCLUDE.
+  >&2 echo %SCRIPT% Error: Cannot find NMaker's global C include directory. Please define variable NMINCLUDE.
   exit /b 1
 )
 
