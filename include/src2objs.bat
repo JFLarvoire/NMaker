@@ -15,15 +15,26 @@
 :#   2017-03-03 JFL Output two distinct variables: OBJECTS and PLUSOBJS       *
 :#   2018-01-12 JFL Updated comments.				              *
 :#   2018-03-11 JFL Output a third variable: _OBJECTS = list without paths    *
+:#   2026-03-31 JFL Pass _OBJECTS list longer than 2KB via a file.	      *
 :#                                                                            *
-:#      © Copyright 2016-2017 Hewlett Packard Enterprise Development LP       *
+:#        Copyright 2016-2017 Hewlett Packard Enterprise Development LP       *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2018-03-11"
+set "VERSION=2026-03-31"
 set ARG0=%0
 goto :main
+
+:strlen stringVar lenVar &:# returns the length of a string
+setlocal EnableDelayedExpansion
+set "len=0"
+if defined %~1 for /l %%b in (12,-1,0) do (
+  set /a "i=(len|(1<<%%b))-1"
+  for %%i in (!i!) do if not "!%~1:~%%i,1!"=="" set /a "len=%%i+1"
+)
+endlocal & if "%~2" neq "" set "%~2=%len%"
+exit /b
 
 :help
 echo Generate object files names from source files names
@@ -79,8 +90,8 @@ for %%s in (%1) do (
     >&2 echo        Please add a conversion rule in %ARG0%
     set ERR=1
   ) else (
-    set "_OBJECT=%%~ns.!OBJ!
-    set "OBJECT=%PLUS%%OBJPATH\%!_OBJECT!
+    set "_OBJECT=%%~ns.!OBJ!"
+    set "OBJECT=%PLUS%%OBJPATH\%!_OBJECT!"
     set "OBJECTS=!OBJECTS! !OBJECT!"
     set "+OBJECTS=!+OBJECTS! +!OBJECT!"
     set "_OBJECTS=!_OBJECTS! !_OBJECT!"
@@ -93,6 +104,20 @@ if defined OBJECTS (
   set "OBJECTS=!OBJECTS:~1!"
   set "+OBJECTS=!+OBJECTS:~1!"
   set "_OBJECTS=!_OBJECTS:~1!"
+)
+
+:# Pass oversize lists via a file, to prevent NMake errors running lib2libs.bat.
+if not "!_OBJECTS:~2048,1!"=="" (
+  call :strlen _OBJECTS LEN
+  set "FILENAME=!OBJPATH\!_objects.lst"
+  :# Output an information message to stderr.
+  :# Dont output it to stdout, as it would end up in the list of objects. And don't say
+  :# warning, as this would cause make.bat to count this as one more compilation warning.
+  >&2 echo %ARG0%: The _OBJECTs list is !LEN! bytes. NMake can't run commands longer than 4KB. Storing list @!FILENAME!
+  if exist !FILENAME! del !FILENAME!
+  for %%o in (!_OBJECTS!) do >>!FILENAME! echo %%o
+  set "_OBJECTS=@!FILENAME!"
+  )
 )
 
 :# Output the result

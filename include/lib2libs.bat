@@ -13,13 +13,14 @@
 :#   2018-03-01 JFL Removed the dependency on remplace.exe.                   *
 :#                  Added the DEFAULTLIBS from the OBJECTS files.             *
 :#   2018-03-11 JFL Use variable _OBJECTS if defined, else use OBJECTS.	      *
+:#   2026-03-31 JFL Allow getting long _OBJECTS lists via a file.             *
 :#		    							      *
 :#        © Copyright 2018 Hewlett Packard Enterprise Development LP          *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2018-03-11"
+set "VERSION=2026-03-31"
 set ARG0=%0
 goto :main
 
@@ -29,13 +30,21 @@ for /f "tokens=1 delims==" %%v in ('set %1[ 2^>NUL') do set "%%v="
 exit /b
 
 :help
-echo Generate LIBRARIES from LIB and LIBS
+echo Generate LIBRARIES from LIB and LIBS, and optionally OBJECTS, or O and _OBJECTS
 echo.
-echo Usage: set "LIB=..." ^& set "LIBS=..." ^& %ARG0% [OPTIONS]
+echo Usage: set "LIB=..." ^& set "LIBS=..." [ ^& set ... ] ^& %ARG0% [OPTIONS]
 echo.
 echo Options:
 echo   -?^|-h         This help
 echo   -V            Display this script version
+echo.
+echo Other optional input variables:
+echo OBJECTS   List of object files pathnames
+echo _OBJECTS  List of object files without path (1)
+echo O         Path to the directory containing the _OBJECTS files
+echo.
+echo Notes:
+echo 1) If _OBJECTS is "@PATHNAME", then get the list from that file.
 goto :eof
 
 :main
@@ -71,18 +80,30 @@ set LIB_LINES=!LIB:;=%LF2%!
 for /f "delims=" %%l in ("!LIB_LINES!") do echo #   "%%l"
 echo # )
 echo # OBJECTS=%OBJECTS%
+echo # _OBJECTS=%_OBJECTS%
 echo # O=%O%
-echo.
-echo # Computed variables:
 
 :# Find additional libraries in the objects we'll link
 set "OLIBS="
 call :DeleteArray OLIBS &:# Clear the OLIBS[] array
 if defined _OBJECTS (
   set "OBJVAR=_OBJECTS"
+  if "!_OBJECTS:~0,1!"=="@" ( :# Get the object list from that file
+    set "FILENAME=!_OBJECTS:~1!"
+    echo.
+    echo # Object list read from "!FILENAME!":
+    set "_OBJECTS="
+    for /f "delims=" %%o in (!FILENAME!) do set "_OBJECTS=!_OBJECTS! %%o"
+    set "_OBJECTS=!_OBJECTS:~1!"
+    echo # _OBJECTS=!_OBJECTS!
+  )
 ) else (
   set "OBJVAR=OBJECTS"
 )
+
+echo.
+echo # Computed variables:
+
 if defined %OBJVAR% (
   for %%o in (!%OBJVAR%!) do (
     if exist "%%~o" (
