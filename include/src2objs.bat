@@ -16,14 +16,15 @@
 :#   2018-01-12 JFL Updated comments.				              *
 :#   2018-03-11 JFL Output a third variable: _OBJECTS = list without paths    *
 :#   2026-03-31 JFL Pass _OBJECTS list longer than 2KB via a file.	      *
+:#   2026-04-01 JFL Replaced variable ARG0=%0 by SCRIPT=%~nx0.		      *
 :#                                                                            *
 :#        Copyright 2016-2017 Hewlett Packard Enterprise Development LP       *
 :# Licensed under the Apache 2.0 license  www.apache.org/licenses/LICENSE-2.0 *
 :#*****************************************************************************
 
 setlocal EnableExtensions EnableDelayedExpansion
-set "VERSION=2026-03-31"
-set ARG0=%0
+set "VERSION=2026-04-01"
+set "SCRIPT=%~nx0"				&:# Script name
 goto :main
 
 :strlen stringVar lenVar &:# returns the length of a string
@@ -39,7 +40,7 @@ exit /b
 :help
 echo Generate object files names from source files names
 echo.
-echo Usage: %ARG0% [options] source ...
+echo Usage: %SCRIPT% [options] source ...
 echo.
 echo Options:
 echo   -?^|-h         This help
@@ -73,6 +74,7 @@ set "+OBJECTS="
 set "_OBJECTS="
 set "ERR=0"
 
+:# Source to object type conversion rules
 set "OBJ[.c]=obj"
 set "OBJ[.cpp]=obj"
 set "OBJ[.asm]=obj"
@@ -86,8 +88,7 @@ for %%s in (%1) do (
   set "EXT=%%~xs"
   set "OBJ=!OBJ[%%~xs]!"
   if not defined OBJ (
-    >&2 echo Error: Unsupported source type: !EXT!
-    >&2 echo        Please add a conversion rule in %ARG0%
+    >&2 echo %SCRIPT%: Error: No conversion rule for type: !EXT!. Please add one.
     set ERR=1
   ) else (
     set "_OBJECT=%%~ns.!OBJ!"
@@ -113,7 +114,7 @@ if not "!_OBJECTS:~2048,1!"=="" (
   :# Output an information message to stderr.
   :# Dont output it to stdout, as it would end up in the list of objects. And don't say
   :# warning, as this would cause make.bat to count this as one more compilation warning.
-  >&2 echo %ARG0%: The _OBJECTs list is !LEN! bytes. NMake can't run commands longer than 4KB. Storing list @!FILENAME!
+  >&2 echo %SCRIPT%: The _OBJECTs list is !LEN! bytes. NMake can't run commands longer than 4KB. Storing list @!FILENAME!
   if exist !FILENAME! del !FILENAME!
   for %%o in (!_OBJECTS!) do >>!FILENAME! echo %%o
   set "_OBJECTS=@!FILENAME!"
